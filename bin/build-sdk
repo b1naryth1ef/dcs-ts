@@ -1,0 +1,3 @@
+#!/bin/bash
+mkdir -p build
+deno bundle --import-map=import_map.json --unstable sdk/index.ts build/sdk.js
