@@ -11,8 +11,8 @@ import { EventType, streamEvents } from "@dcs/event.ts";
 import { getFlyDistance } from "@dcs/util/geo.ts";
 import { outText } from "@dcs/trigger.ts";
 import { addGroup, CreatePlaneGroup, CreatePlaneUnit } from "@dcs/group.ts";
-import { AltitudeType } from "../sdk/mission.ts";
-import { addDetectedTarget } from "../sdk/controller.ts";
+import { AltitudeType } from "@dcs/mission.ts";
+import { addDetectedTarget } from "@dcs/controller.ts";
 
 const ENEMY_COALITION = CoalitionType.RED;
 const TRESPASS_DISTANCE = 200;
