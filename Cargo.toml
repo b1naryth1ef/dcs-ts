@@ -10,8 +10,8 @@ rust-version = "1.57"
 crate-type = ["cdylib"]
 
 [dependencies]
-deno_core = { git = "https://github.com/denoland/deno", rev = "50e8ab8a8630a272e9862f2fb7014107474405c6" }
-deno_runtime = { git = "https://github.com/denoland/deno", rev = "50e8ab8a8630a272e9862f2fb7014107474405c6" }
+deno_core = { git = "https://github.com/denoland/deno", rev = "2ea535c8c1817a20a3915e350242423ee71cfa73" }
+deno_runtime = { git = "https://github.com/denoland/deno", rev = "2ea535c8c1817a20a3915e350242423ee71cfa73" }
 futures-util = "0.3"
 igrf = "0.2"
 libloading = { version = "0.7", optional = true }
