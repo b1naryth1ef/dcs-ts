@@ -4,6 +4,7 @@ import {
   Group,
   MarkPanel,
   ObjectCategory,
+  ObjectRef,
   SomeObject,
   Unit,
   Volume,
@@ -28,7 +29,7 @@ export function searchObjects(
 }
 
 export function getObjectDescription(
-  object: SomeObject,
+  object: ObjectRef,
 ): Promise<unknown> {
   return runTask<unknown>("objectGetDesc", {
     object,
@@ -36,7 +37,7 @@ export function getObjectDescription(
 }
 
 export function destroyObject(
-  object: SomeObject,
+  object: ObjectRef,
 ): Promise<void> {
   return runTask<void>("objectDestroy", {
     object,

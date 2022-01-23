@@ -9,11 +9,11 @@ export async function main() {
     return;
   }
 
-  const targetPath = Deno.args[1]
+  const targetPath = Deno.args[1];
   const mission = await readMissionFile(targetPath);
 
   Deno.stdout.writeSync(
-    new TextEncoder().encode(JSON.stringify(mission, null, 2))
+    new TextEncoder().encode(JSON.stringify(mission, null, 2)),
   );
 }
 

@@ -1,10 +1,4 @@
-import {
-  Country,
-  Group,
-  GroupCategory,
-  Position,
-  Unit,
-} from "./common.ts";
+import { Country, GroupCategory, Position, Unit } from "./common.ts";
 import {
   HelicopterGroup,
   HelicopterUnit,
@@ -16,7 +10,7 @@ import {
   ShipUnit,
   VehicleGroup,
   VehicleUnit,
-Waypoint,
+  Waypoint,
 } from "./mission.ts";
 import { runTask } from "./runtime.ts";
 
@@ -25,16 +19,16 @@ export function getGroupUnits(name: string): Promise<Array<Unit>> {
 }
 
 export type CreatePlanePayload = Omit<PlanePayload, "pylons"> & {
-  pylons?: Array<{id: number, clsid: string}>;
-}
+  pylons?: Array<{ id: number; clsid: string }>;
+};
 
 export type CreateWaypoint = Omit<Waypoint, "x" | "y" | "alt"> & {
   position: Position;
-}
+};
 
 export type CreateRoute = Omit<Route, "points"> & {
   points: Array<CreateWaypoint>;
-}
+};
 
 export interface CreateCallsign {
   id: Array<number>;
@@ -45,11 +39,13 @@ export type CreateShipUnit = Omit<ShipUnit, "x" | "y"> & {
   position: Position;
 };
 
-export type CreatePlaneUnit = Omit<PlaneUnit, "x" | "y" | "alt" | "callsign" | "payload"> & {
-  position: Position;
-  callsign: CreateCallsign;
-  payload: CreatePlanePayload;
-};
+export type CreatePlaneUnit =
+  & Omit<PlaneUnit, "x" | "y" | "alt" | "callsign" | "payload">
+  & {
+    position: Position;
+    callsign: CreateCallsign;
+    payload: CreatePlanePayload;
+  };
 
 export type CreateVehicleUnit = Omit<VehicleUnit, "x" | "y"> & {
   position: Position;
@@ -84,7 +80,7 @@ export type CreateVehicleGroup =
   };
 
 export type CreateHelicopterGroup =
-  & Omit<HelicopterGroup, "units" | "x" |"y">
+  & Omit<HelicopterGroup, "units" | "x" | "y">
   & {
     units: Array<CreateHelicopterUnit>;
     position?: Position;
