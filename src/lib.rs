@@ -157,7 +157,7 @@ pub fn add_task_results(lua: &Lua, results: mlua::Table) -> LuaResult<()> {
 
 #[no_mangle]
 pub fn lua_channel_send(lua: &Lua, (channel, msg): (mlua::Number, mlua::Table)) -> LuaResult<bool> {
-    log::debug!("lua_channel_send (channel = {})", channel);
+    log::trace!("lua_channel_send (channel = {})", channel);
     let mut runtime = RUNTIME.lock().unwrap();
     if runtime.is_some() {
         let msg_json: serde_json::Value = lua.from_value(mlua::Value::Table(msg))?;
