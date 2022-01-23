@@ -8,7 +8,7 @@ import {
 } from "@dcs/common.ts";
 import { getAirbases, getUnits } from "@dcs/coalition.ts";
 import { EventType, streamEvents } from "@dcs/event.ts";
-import { getFlyDistance } from "@dcs/util/geo.ts";
+import { getDistance } from "@dcs/util/geo.ts";
 import { outText } from "@dcs/trigger.ts";
 import { addGroup, CreatePlaneGroup, CreatePlaneUnit } from "@dcs/group.ts";
 import { AltitudeType } from "@dcs/mission.ts";
@@ -131,7 +131,7 @@ async function checkTrespass(
         continue;
       }
 
-      const distance = getFlyDistance(airbase.position, unit.position);
+      const distance = getDistance(airbase.position, unit.position);
       if (distance <= TRESPASS_DISTANCE) {
         console.log(
           `[${unit.name}] is trespassing ${distance}km away from airport ${airbase.name}`,

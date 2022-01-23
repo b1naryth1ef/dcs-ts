@@ -7,6 +7,7 @@ export enum CoalitionType {
 
 // [latitude, longitude, altitude]
 export type Position = [number, number, number];
+export type CoordLike = [number, number, ...number[]];
 
 export type Vec2 = {
   x: number;
