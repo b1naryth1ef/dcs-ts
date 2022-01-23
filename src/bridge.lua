@@ -749,7 +749,9 @@ local function getObject(obj)
   elseif obj.staticObject ~= nil then
     return StaticObject.getByName(obj.staticObject)
   elseif obj.id ~= nil then
-    return { id_ = obj.id }
+    return {
+      id_ = obj.id
+    }
   end
   return nil
 end
@@ -780,7 +782,14 @@ fns.objectGetDesc = function(args)
   if args.object.sceneryObject ~= nil then
     return SceneryObject.getDescByName(args.object.sceneryObject)
   else
-    return getObject(args.object):getDesc()
+    local object = getObject(args.object)
+    local category = Object.getCategory(object)
+
+    if category == Object.Category.WEAPON then
+      return Weapon.getDesc(object)
+    end
+
+    return nil
   end
 end
 
@@ -789,7 +798,7 @@ fns.objectGet = function(args)
 end
 
 fns.objectDestroy = function(args)
-  getObject(args.object):destroy()
+  Object.destroy(getObject(args.object))
 end
 
 fns.getMarkPanels = function(args)
@@ -912,27 +921,36 @@ fns.createEventProducer = function(args)
       end
     end
 
+    local eventCopy = {}
+    for k, v in pairs(event) do
+      eventCopy[k] = v
+    end
+
     if event.initiator ~= nil then
-      ts.log("exporting initiator for event " .. tostring(event.id))
-      event.initiator = exportObject(event.initiator)
+      eventCopy.initiator = exportObject(event.initiator)
     end
     if event.place ~= nil then
-      event.place = exportObject(event.place)
+      eventCopy.place = exportObject(event.place)
     end
     if event.target ~= nil then
-      event.target = exportObject(event.target)
+      eventCopy.target = exportObject(event.target)
     end
     if event.weapon ~= nil then
-      event.weapon = exportObject(event.weapon).weapon
+      local weapon = exportObject(event.weapon)
+      if weapon ~= nil then
+        eventCopy.weapon = exportObject(event.weapon).weapon
+      else
+        eventCopy.weapon = nil
+      end
     end
     if event.pos ~= nil then
-      event.pos = exportPosition(event.pos)
+      eventCopy.pos = exportPosition(event.pos)
     end
     if event.weapon_name ~= nil then
-      event.weaponName = event.weapon_name
-      event.weapon_name = nil
+      eventCopy.weaponName = event.weapon_name
+      eventCopy.weapon_name = nil
     end
-    if not ts.channel_send(args.channel.id, event) then
+    if not ts.channel_send(args.channel.id, eventCopy) then
       world.removeEventHandler(eventHandler)
     end
   end
