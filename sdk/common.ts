@@ -107,6 +107,7 @@ export type ObjectRef = (
   | { airbase: string }
   | { staticObject: string }
   | { sceneryObject: string }
+  | { id: number }
 );
 
 export type Weapon = {

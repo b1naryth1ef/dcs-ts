@@ -748,6 +748,8 @@ local function getObject(obj)
     return Airbase.getByName(obj.airbase)
   elseif obj.staticObject ~= nil then
     return StaticObject.getByName(obj.staticObject)
+  elseif obj.id ~= nil then
+    return { id_ = obj.id }
   end
   return nil
 end
