@@ -37,8 +37,8 @@ export function raytrace(
   origin: Position,
   direction: Vec3,
   distance: number,
-): Promise<Position> {
-  return runTask<Position>("landGetIP", {
+): Promise<Position | null> {
+  return runTask<Position | null>("landGetIP", {
     origin,
     direction,
     distance,
