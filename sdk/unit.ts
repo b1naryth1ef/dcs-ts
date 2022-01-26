@@ -141,7 +141,7 @@ export class UnitWatcher {
     }
   }
 
-  async streamInto(units: Map<string, Unit | null>) {
+  async streamInto(units: Map<string, Unit | null>, keepRemoved = false) {
     for await (const update of this.streamUpdates()) {
       if (update.updated !== undefined) {
         for (const unit of update.updated) {
@@ -150,7 +150,11 @@ export class UnitWatcher {
       }
       if (update.removed !== undefined) {
         for (const unitName of update.removed) {
-          units.set(unitName, null);
+          if (keepRemoved) {
+            units.set(unitName, null);
+          } else {
+            units.delete(unitName);
+          }
         }
       }
     }
