@@ -93,12 +93,12 @@ const responses = new Map<string, ResponseGroup>();
 async function trackPlayerUnits(watcher: UnitWatcher) {
   for await (const event of streamEvents([EventType.BIRTH, EventType.DEAD])) {
     if (
-      event.id == EventType.BIRTH && "unit" in event.initiator &&
+      event.id == EventType.BIRTH && event.initiator && "unit" in event.initiator &&
       event.initiator.unit.playerName
     ) {
       await watcher.add(event.initiator.unit.name);
     } else if (
-      event.id == EventType.DEAD && "unit" in event.initiator
+      event.id == EventType.DEAD && event.initiator && "unit" in event.initiator
     ) {
       if (event.initiator.unit.playerName) {
         await watcher.remove(event.initiator.unit.name);
