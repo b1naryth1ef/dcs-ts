@@ -1,12 +1,13 @@
 export enum CoalitionType {
+  ALL = -1,
   NEUTRAL = 0,
   RED = 1,
   BLUE = 2,
-  ALL = 3,
 }
 
 // [latitude, longitude, altitude]
 export type Position = [number, number, number];
+export type CoordLike = [number, number, ...number[]];
 
 export type Vec2 = {
   x: number;
@@ -107,7 +108,75 @@ export type ObjectRef = (
   | { airbase: string }
   | { staticObject: string }
   | { sceneryObject: string }
+  | { id: number }
 );
+
+export enum WeaponCategory {
+  SHELL = 0,
+  MISSILE = 1,
+  ROCKET = 2,
+  BOMB = 3,
+}
+
+export enum WeaponGuidanceType {
+  INS = 1,
+  IR = 2,
+  RADAR_ACTIVE = 3,
+  RADAR_SEMI_ACTIVE = 4,
+  RADAR_PASSIVE = 5,
+  TV = 6,
+  LASER = 7,
+  TELE = 8,
+}
+
+export enum WeaponMissileCategory {
+  AAM = 1,
+  SAM = 2,
+  BM = 3,
+  ANTI_SHIP = 4,
+  CRUISE = 5,
+  OTHER = 6,
+}
+
+export enum WeaponWarheadType {
+  AP = 0,
+  HE = 1,
+  SHAPED_EXPLOSIVE = 2,
+}
+
+export type WeaponDescription = {
+  category: WeaponCategory;
+  warhead: {
+    type: WeaponWarheadType;
+    mass: number;
+    caliber: number;
+    explosiveMass?: number;
+    shapedExplosiveMass?: number;
+    shapedExplosiveArmorThickness?: number;
+  };
+};
+
+export type WeaponMissileDescription = {
+  guidance: WeaponGuidanceType;
+  rangeMin: number;
+  rangeMaxAltMin: number;
+  rangeMaxAltMax: number;
+  altMin: number;
+  altMax: number;
+  Nmax: number;
+  fuseDist: number;
+};
+
+export type WeaponRocketDescription = {
+  distMin: number;
+  distMax: number;
+};
+
+export type WeaponBombDescription = {
+  guidance: WeaponGuidanceType;
+  altMin: number;
+  altMax: number;
+};
 
 export type Weapon = {
   id: number;

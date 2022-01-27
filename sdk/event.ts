@@ -213,7 +213,7 @@ export type Event = (
     time: number;
   }
     & (
-      & { initiator: SomeObject }
+      & { initiator?: SomeObject }
       & (
         | Events.Shot
         | Events.Hit

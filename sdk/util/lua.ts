@@ -1,7 +1,7 @@
 export type LuaTableParserOptions = {
   emptyObjectUndefined?: boolean;
   emitArrays?: boolean;
-}
+};
 
 export class LuaTableParser {
   private index: number = 0;
@@ -65,7 +65,7 @@ export class LuaTableParser {
   parseTable(): unknown {
     this.expect("{");
 
-    let isArray: boolean | null= null;
+    let isArray: boolean | null = null;
     let table: Record<string | number, unknown> = {};
     while (true) {
       if (this.peekChar() === "}") break;
@@ -76,7 +76,7 @@ export class LuaTableParser {
       } else if (typeof key === "number" && isArray === null) {
         isArray = true;
       }
-    
+
       this.expect("=");
       const value = this.parseOne();
       table[key] = value;
@@ -89,7 +89,9 @@ export class LuaTableParser {
 
     this.expect("}");
 
-    let keys = Object.keys(table).map((it) => parseInt(it)).sort((a, b) => a - b);
+    let keys = Object.keys(table).map((it) => parseInt(it)).sort((a, b) =>
+      a - b
+    );
     let last = keys[0] - 1;
     for (const key of keys) {
       if (last !== key - 1) {
@@ -98,9 +100,11 @@ export class LuaTableParser {
       }
       last = key;
     }
-    
+
     if (isArray && this.opts?.emitArrays) {
-      const entries = Object.entries(table).sort(([a], [b]) => parseInt(a) - parseInt(b)).map((it) => it[1]);
+      const entries = Object.entries(table).sort(([a], [b]) =>
+        parseInt(a) - parseInt(b)
+      ).map((it) => it[1]);
       return Array.from(entries);
     }
 
@@ -141,7 +145,10 @@ export class LuaTableParser {
     let number = "";
     while (true) {
       const char = this.peekChar();
-      if (/\d/.test(char) || char === "." && !number.includes(".") || char === "-" && number === "") {
+      if (
+        /\d/.test(char) || char === "." && !number.includes(".") ||
+        char === "-" && number === ""
+      ) {
         number += this.readChar();
       } else {
         // todo: parseInt or parseFloat
@@ -172,6 +179,9 @@ export class LuaTableParser {
   }
 }
 
-export function parseLuaTable<T = {}>(data: string, opts?: LuaTableParserOptions): T {
+export function parseLuaTable<T = {}>(
+  data: string,
+  opts?: LuaTableParserOptions,
+): T {
   return (new LuaTableParser(data, opts)).parse() as T;
 }

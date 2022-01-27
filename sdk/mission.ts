@@ -1,4 +1,4 @@
-import { readZip } from "https://deno.land/x/jszip/mod.ts";
+import { runTask } from "./runtime.ts";
 import { parseLuaTable } from "./util/lua.ts";
 
 export interface MissionData {
@@ -11,7 +11,7 @@ export interface MissionData {
   descriptionNeutralsTask: string;
   weather: Weather;
   theatre: string;
-  triggers: Trig;
+  triggers: Triggers;
   map: Map;
   coalitions: Coalitions;
   descriptionText: string;
@@ -23,6 +23,22 @@ export interface MissionData {
   currentKey: number;
   start_time: number;
   failures: { [key: string]: Failure };
+}
+
+export interface Triggers {
+  zones: Array<TriggerZone>;
+}
+
+export interface TriggerZone {
+  color: [number, number, number, number];
+  hidden: boolean;
+  name: string;
+  properties: Record<string, unknown>;
+  radius: number;
+  type: number;
+  x: number;
+  y: number;
+  zoneId: number;
 }
 
 export interface Coalition {
@@ -269,6 +285,14 @@ export interface Transportable {
 }
 
 export interface Trig {
+  actions: {};
+  conditions: {};
+  custom: {};
+  customStartup: {};
+  events: {};
+  flag: {};
+  func: {};
+  funcStartup: {};
 }
 
 export interface Coalitions {
@@ -416,6 +440,7 @@ export type MissionFile = {
  * Read the data from a DCS mission file (.miz) located at the provided path.
  */
 export async function readMissionFile(path: string): Promise<MissionFile> {
+  const { readZip } = await import("https://deno.land/x/jszip/mod.ts");
   const zip = await readZip(path);
 
   const [theatre, optionsRaw, dataRaw, warehousesRaw] = await Promise.all([
@@ -439,4 +464,8 @@ export async function readMissionFile(path: string): Promise<MissionFile> {
     options,
     warehouses,
   };
+}
+
+export function getMissionData(): Promise<MissionData> {
+  return runTask<MissionData>("envGetMission");
 }

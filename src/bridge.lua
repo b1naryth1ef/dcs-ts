@@ -1,6 +1,9 @@
 local fns = {}
 
 function exportPosition(pos)
+  if pos == nil then
+    return nil
+  end
   local lat, lon, alt = coord.LOtoLL(pos)
   return {lat, lon, alt}
 end
@@ -173,6 +176,13 @@ fns.triggerActionRemoveMark = function(args)
   trigger.action.removeMark(args.id)
 end
 
+fns.triggerActionLine = function(args)
+  local startpos = coord.LLtoLO(args.start[1], args.start[2], args.start[3])
+  local endpos = coord.LLtoLO(args.end_[1], args.end_[2], args.end_[3])
+  trigger.action.lineToAll(args.coalition, args.id, startpos, endpos, args.color, args.lineType, args.readOnly,
+    args.message)
+end
+
 fns.getTime = function(args)
   return timer.getTime()
 end
@@ -256,11 +266,14 @@ end
 fns.coalitionGetPlayers = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, unit in ipairs(coalition.getPlayers(side)) do
         table.insert(result, exportUnit(unit))
       end
     end
+  end
+  if #result == 0 then
+    return nil
   end
   return result
 end
@@ -268,11 +281,14 @@ end
 fns.coalitionGetAirbases = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, airbase in ipairs(coalition.getAirbases(side)) do
         table.insert(result, exportAirbase(airbase))
       end
     end
+  end
+  if #result == 0 then
+    return nil
   end
   return result
 end
@@ -280,11 +296,14 @@ end
 fns.coalitionGetGroups = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, group in ipairs(coalition.getGroups(side, args.category)) do
         table.insert(result, exportGroup(group))
       end
     end
+  end
+  if #result == 0 then
+    return nil
   end
   return result
 end
@@ -292,13 +311,16 @@ end
 fns.coalitionGetUnits = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, group in ipairs(coalition.getGroups(side, args.category)) do
         for index, unit in ipairs(group:getUnits()) do
           table.insert(result, exportUnit(unit))
         end
       end
     end
+  end
+  if #result == 0 then
+    return nil
   end
   return result
 end
@@ -374,6 +396,11 @@ fns.unitSetEmission = function(args)
   return unit:enableEmission(args.value)
 end
 
+fns.landConvertPoint = function(args)
+  local lat, lng, alt = coord.LOtoLL(args.point)
+  return {lat, lng, alt}
+end
+
 fns.landGetHeight = function(args)
   local pos = coord.LLtoLO(args.pos.x, args.pos.y, 0)
   return land.getHeight({
@@ -425,7 +452,11 @@ fns.landFindPathOnRoads = function(args)
   local path = land.findPathOnRoads(args.roadType, origin.x, origin.z, destination.x, destination.z)
   local result = {}
   for index, point in ipairs(path) do
-    local lat, lng, alt = coord.LOtoLL({point[1], point[2], 0})
+    local lat, lng, alt = coord.LOtoLL({
+      x = point.x,
+      y = 0,
+      z = point.y
+    })
     table.insert(result, {lat, lng, 0})
   end
   return result
@@ -748,6 +779,10 @@ local function getObject(obj)
     return Airbase.getByName(obj.airbase)
   elseif obj.staticObject ~= nil then
     return StaticObject.getByName(obj.staticObject)
+  elseif obj.id ~= nil then
+    return {
+      id_ = obj.id
+    }
   end
   return nil
 end
@@ -778,7 +813,14 @@ fns.objectGetDesc = function(args)
   if args.object.sceneryObject ~= nil then
     return SceneryObject.getDescByName(args.object.sceneryObject)
   else
-    return getObject(args.object):getDesc()
+    local object = getObject(args.object)
+    local category = Object.getCategory(object)
+
+    if category == Object.Category.WEAPON then
+      return Weapon.getDesc(object)
+    end
+
+    return nil
   end
 end
 
@@ -787,7 +829,7 @@ fns.objectGet = function(args)
 end
 
 fns.objectDestroy = function(args)
-  getObject(args.object):destroy()
+  Object.destroy(getObject(args.object))
 end
 
 fns.getMarkPanels = function(args)
@@ -855,6 +897,10 @@ fns.triggerActionEffectSmokeBig = function(args)
   trigger.action.effectSmokeBig(pos, args.type, args.density, args.name)
 end
 
+fns.triggerActionEffectSmokeStop = function(args)
+  trigger.action.effectSmokeStop(args.name)
+end
+
 fns.triggerActionSmoke = function(args)
   local pos = coord.LLtoLO(args.position[1], args.position[2], args.position[3])
   trigger.action.smoke(pos, args.color)
@@ -894,6 +940,10 @@ fns.triggerActionOutSound = function(args)
   end
 end
 
+fns.envGetMission = function(args)
+  return env.mission
+end
+
 fns.createEventProducer = function(args)
   local eventHandler = {}
   function eventHandler:onEvent(event)
@@ -910,27 +960,36 @@ fns.createEventProducer = function(args)
       end
     end
 
+    local eventCopy = {}
+    for k, v in pairs(event) do
+      eventCopy[k] = v
+    end
+
     if event.initiator ~= nil then
-      ts.log("exporting initiator for event " .. tostring(event.id))
-      event.initiator = exportObject(event.initiator)
+      eventCopy.initiator = exportObject(event.initiator)
     end
     if event.place ~= nil then
-      event.place = exportObject(event.place)
+      eventCopy.place = exportObject(event.place)
     end
     if event.target ~= nil then
-      event.target = exportObject(event.target)
+      eventCopy.target = exportObject(event.target)
     end
     if event.weapon ~= nil then
-      event.weapon = exportObject(event.weapon).weapon
+      local weapon = exportObject(event.weapon)
+      if weapon ~= nil then
+        eventCopy.weapon = exportObject(event.weapon).weapon
+      else
+        eventCopy.weapon = nil
+      end
     end
     if event.pos ~= nil then
-      event.pos = exportPosition(event.pos)
+      eventCopy.pos = exportPosition(event.pos)
     end
     if event.weapon_name ~= nil then
-      event.weaponName = event.weapon_name
-      event.weapon_name = nil
+      eventCopy.weaponName = event.weapon_name
+      eventCopy.weapon_name = nil
     end
-    if not ts.channel_send(args.channel.id, event) then
+    if not ts.channel_send(args.channel.id, eventCopy) then
       world.removeEventHandler(eventHandler)
     end
   end
