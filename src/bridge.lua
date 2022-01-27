@@ -387,7 +387,7 @@ fns.unitSetEmission = function(args)
 end
 
 fns.landConvertPoint = function(args)
-  local lat, lng, alt = coord.LOtoLL({args.point[1], args.point[2], args.point[3]})
+  local lat, lng, alt = coord.LOtoLL(args.point)
   return {lat, lng, alt}
 end
 
@@ -442,7 +442,11 @@ fns.landFindPathOnRoads = function(args)
   local path = land.findPathOnRoads(args.roadType, origin.x, origin.z, destination.x, destination.z)
   local result = {}
   for index, point in ipairs(path) do
-    local lat, lng, alt = coord.LOtoLL({point[1], point[2], 0})
+    local lat, lng, alt = coord.LOtoLL({
+      x = point.x,
+      y = 0,
+      z = point.y
+    })
     table.insert(result, {lat, lng, 0})
   end
   return result
