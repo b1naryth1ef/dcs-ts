@@ -12,7 +12,7 @@ export interface MissionData {
   descriptionNeutralsTask: string;
   weather: Weather;
   theatre: string;
-  triggers: Trig;
+  triggers: Triggers;
   map: Map;
   coalitions: Coalitions;
   descriptionText: string;
@@ -24,6 +24,22 @@ export interface MissionData {
   currentKey: number;
   start_time: number;
   failures: { [key: string]: Failure };
+}
+
+export interface Triggers {
+  zones: Array<TriggerZone>;
+}
+
+export interface TriggerZone {
+  color: [number, number, number, number];
+  hidden: boolean;
+  name: string;
+  properties: Record<string, unknown>;
+  radius: number;
+  type: number;
+  x: number;
+  y: number;
+  zoneId: number;
 }
 
 export interface Coalition {
@@ -270,6 +286,14 @@ export interface Transportable {
 }
 
 export interface Trig {
+  actions: {};
+  conditions: {};
+  custom: {};
+  customStartup: {};
+  events: {};
+  flag: {};
+  func: {};
+  funcStartup: {};
 }
 
 export interface Coalitions {
