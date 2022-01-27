@@ -7,6 +7,6 @@ export async function githubPush(ws: Workspace) {
   pushStep("Lint SDK");
   await Docker.run("cd sdk && deno fmt --check", {
     image: `denoland/deno:${DENO_VERSION}`,
-    copy: ["sdk/"],
+    copy: ["sdk/**"],
   });
 }
