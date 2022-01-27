@@ -1,4 +1,3 @@
-import { readZip } from "https://deno.land/x/jszip/mod.ts";
 import { runTask } from "./runtime.ts";
 import { parseLuaTable } from "./util/lua.ts";
 
@@ -441,6 +440,7 @@ export type MissionFile = {
  * Read the data from a DCS mission file (.miz) located at the provided path.
  */
 export async function readMissionFile(path: string): Promise<MissionFile> {
+  const { readZip } = await import("https://deno.land/x/jszip/mod.ts");
   const zip = await readZip(path);
 
   const [theatre, optionsRaw, dataRaw, warehousesRaw] = await Promise.all([
