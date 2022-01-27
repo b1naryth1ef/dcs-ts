@@ -1,6 +1,9 @@
 local fns = {}
 
 function exportPosition(pos)
+  if pos == nil then
+    return nil
+  end
   local lat, lon, alt = coord.LOtoLL(pos)
   return {lat, lon, alt}
 end
