@@ -262,6 +262,9 @@ fns.coalitionGetPlayers = function(args)
       end
     end
   end
+  if #result == 0 then
+    return nil
+  end
   return result
 end
 
@@ -274,6 +277,9 @@ fns.coalitionGetAirbases = function(args)
       end
     end
   end
+  if #result == 0 then
+    return nil
+  end
   return result
 end
 
@@ -285,6 +291,9 @@ fns.coalitionGetGroups = function(args)
         table.insert(result, exportGroup(group))
       end
     end
+  end
+  if #result == 0 then
+    return nil
   end
   return result
 end
@@ -299,6 +308,9 @@ fns.coalitionGetUnits = function(args)
         end
       end
     end
+  end
+  if #result == 0 then
+    return nil
   end
   return result
 end

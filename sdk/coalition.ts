@@ -7,34 +7,38 @@ import {
   Unit,
 } from "./common.ts";
 
-export function getPlayers(
+export async function getPlayers(
   coalition: CoalitionType,
 ): Promise<Array<Unit>> {
-  return runTask<Array<Unit>>("coalitionGetPlayers", { coalition });
+  return (await runTask<Array<Unit> | null>("coalitionGetPlayers", {
+    coalition,
+  })) || [];
 }
 
-export function getAirbases(
+export async function getAirbases(
   coalition: CoalitionType,
 ): Promise<Array<Airbase>> {
-  return runTask<Array<Airbase>>("coalitionGetAirbases", { coalition });
+  return (await runTask<Array<Airbase> | null>("coalitionGetAirbases", {
+    coalition,
+  })) || [];
 }
 
-export function getGroups(
+export async function getGroups(
   coalition = CoalitionType.ALL,
   category?: GroupCategory,
 ): Promise<Array<Group>> {
-  return runTask<Array<Group>>("coalitionGetGroups", {
+  return (await runTask<Array<Group> | null>("coalitionGetGroups", {
     coalition,
     category,
-  });
+  })) || [];
 }
 
-export function getUnits(
+export async function getUnits(
   coalition = CoalitionType.ALL,
   category?: GroupCategory,
 ): Promise<Array<Unit>> {
-  return runTask<Array<Unit>>("coalitionGetUnits", {
+  return (await runTask<Array<Unit> | null>("coalitionGetUnits", {
     coalition,
     category,
-  });
+  })) || [];
 }
