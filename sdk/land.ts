@@ -3,6 +3,14 @@ import { Position, SurfaceType, Vec2, Vec3 } from "./common.ts";
 
 export type RoadType = "roads" | "railroads";
 
+/**
+ * Converts a DCS internal point into a geographic position. This is useful for
+ * converting mission data into a useable format.
+ */
+export function convertPoint(point: Vec3): Promise<Position> {
+  return runTask<Position>("landConvertPoint", { point });
+}
+
 export function getHeight(pos: Vec2): Promise<number> {
   return runTask<number>("landGetHeight", {
     pos,

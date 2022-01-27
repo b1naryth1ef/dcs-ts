@@ -386,6 +386,11 @@ fns.unitSetEmission = function(args)
   return unit:enableEmission(args.value)
 end
 
+fns.landConvertPoint = function(args)
+  local lat, lng, alt = coord.LOtoLL({args.point[1], args.point[2], args.point[3]})
+  return {lat, lng, alt}
+end
+
 fns.landGetHeight = function(args)
   local pos = coord.LLtoLO(args.pos.x, args.pos.y, 0)
   return land.getHeight({
