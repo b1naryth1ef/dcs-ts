@@ -1,4 +1,5 @@
 import {
+  CoalitionType,
   Country,
   GroupOrCoalition,
   Position,
@@ -222,5 +223,37 @@ export function createMark(
 export function removeMark(id: number) {
   return runTask("triggerActionRemoveMark", {
     id,
+  });
+}
+
+export enum LineType {
+  NONE = 0,
+  SOLID = 1,
+  DASHED = 2,
+  DOTTED = 3,
+  DASHED_DOTTED = 4,
+  LONG_DASHED = 5,
+  DOUBLE_DASHED = 6,
+}
+
+export function drawLine(
+  id: number,
+  start: Position,
+  end: Position,
+  color: [number, number, number, number],
+  lineType: LineType,
+  readOnly?: boolean,
+  message?: string,
+  coalition = CoalitionType.ALL,
+) {
+  return runTask("triggerActionLine", {
+    id,
+    start,
+    end_: end,
+    color,
+    lineType,
+    readOnly,
+    message,
+    coalition,
   });
 }

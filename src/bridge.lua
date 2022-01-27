@@ -173,6 +173,12 @@ fns.triggerActionRemoveMark = function(args)
   trigger.action.removeMark(args.id)
 end
 
+fns.triggerActionLine = function(args)
+  local startpos = coord.LLtoLO(args.start[1], args.start[2], args.start[3])
+  local endpos = coord.LLtoLO(args.end_[1], args.end_[2], args.end_[3])
+  trigger.action.lineToAll(args.coalition, args.id, startpos, endpos, args.color, args.lineType, args.readOnly, args.message)
+end
+
 fns.getTime = function(args)
   return timer.getTime()
 end
@@ -256,7 +262,7 @@ end
 fns.coalitionGetPlayers = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, unit in ipairs(coalition.getPlayers(side)) do
         table.insert(result, exportUnit(unit))
       end
@@ -271,7 +277,7 @@ end
 fns.coalitionGetAirbases = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, airbase in ipairs(coalition.getAirbases(side)) do
         table.insert(result, exportAirbase(airbase))
       end
@@ -286,7 +292,7 @@ end
 fns.coalitionGetGroups = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, group in ipairs(coalition.getGroups(side, args.category)) do
         table.insert(result, exportGroup(group))
       end
@@ -301,7 +307,7 @@ end
 fns.coalitionGetUnits = function(args)
   local result = {}
   for _, side in pairs(coalition.side) do
-    if args.coalition == 3 or args.coalition == side then
+    if args.coalition == -1 or args.coalition == side then
       for index, group in ipairs(coalition.getGroups(side, args.category)) do
         for index, unit in ipairs(group:getUnits()) do
           table.insert(result, exportUnit(unit))

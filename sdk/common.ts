@@ -1,8 +1,8 @@
 export enum CoalitionType {
+  ALL = -1,
   NEUTRAL = 0,
   RED = 1,
   BLUE = 2,
-  ALL = 3,
 }
 
 // [latitude, longitude, altitude]
