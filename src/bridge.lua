@@ -917,6 +917,10 @@ fns.triggerActionOutSound = function(args)
   end
 end
 
+fns.envGetMission = function(args)
+  return env.mission
+end
+
 fns.createEventProducer = function(args)
   local eventHandler = {}
   function eventHandler:onEvent(event)

@@ -1,4 +1,5 @@
 import { readZip } from "https://deno.land/x/jszip/mod.ts";
+import { runTask } from "./runtime.ts";
 import { parseLuaTable } from "./util/lua.ts";
 
 export interface MissionData {
@@ -439,4 +440,8 @@ export async function readMissionFile(path: string): Promise<MissionFile> {
     options,
     warehouses,
   };
+}
+
+export function getMissionData(): Promise<MissionData> {
+  return runTask<MissionData>("envGetMission");
 }
