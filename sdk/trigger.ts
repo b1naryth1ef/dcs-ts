@@ -120,6 +120,10 @@ export function bigSmoke(
   });
 }
 
+export function removeBigSmoke(name: string) {
+  return runTask("triggerActionEffectSmokeStop", { name });
+}
+
 export enum SmokeColor {
   GREEN = 0,
   RED = 1,

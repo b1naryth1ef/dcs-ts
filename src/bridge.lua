@@ -176,7 +176,8 @@ end
 fns.triggerActionLine = function(args)
   local startpos = coord.LLtoLO(args.start[1], args.start[2], args.start[3])
   local endpos = coord.LLtoLO(args.end_[1], args.end_[2], args.end_[3])
-  trigger.action.lineToAll(args.coalition, args.id, startpos, endpos, args.color, args.lineType, args.readOnly, args.message)
+  trigger.action.lineToAll(args.coalition, args.id, startpos, endpos, args.color, args.lineType, args.readOnly,
+    args.message)
 end
 
 fns.getTime = function(args)
@@ -891,6 +892,10 @@ end
 fns.triggerActionEffectSmokeBig = function(args)
   local pos = coord.LLtoLO(args.position[1], args.position[2], args.position[3])
   trigger.action.effectSmokeBig(pos, args.type, args.density, args.name)
+end
+
+fns.triggerActionEffectSmokeStop = function(args)
+  trigger.action.effectSmokeStop(args.name)
 end
 
 fns.triggerActionSmoke = function(args)
