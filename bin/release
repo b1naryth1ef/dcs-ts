@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+DIR=dcs-ts-v$1
+mkdir $DIR
+cargo +nightly build --release
+cp res/ts-init.lua $DIR/
+cp target/release/dcs_ts.dll $DIR/
+echo $DIR
