@@ -380,6 +380,9 @@ pub fn op_print(_state: &mut OpState, msg: String, is_err: bool) -> Result<(), E
 async fn run(config: Config) -> Result<bool, Error> {
     let (reload_tx, mut reload_rx) = mpsc::channel::<()>(1);
 
+    let mut data_dir = PathBuf::from(&config.write_dir.unwrap());
+    data_dir.push("Data");
+
     let ext = Extension::builder()
         .middleware(|name, opfn| match name {
             "op_print" => op_sync(op_print),
@@ -430,9 +433,6 @@ async fn run(config: Config) -> Result<bool, Error> {
         "DCSTS".to_string(),
     ));
 
-    let mut origin_storage_dir = PathBuf::from(&config.write_dir.unwrap());
-    origin_storage_dir.push("Data/");
-
     let options = WorkerOptions {
         bootstrap: BootstrapOptions {
             apply_source_maps: true,
@@ -458,7 +458,7 @@ async fn run(config: Config) -> Result<bool, Error> {
         should_break_on_first_statement: config.break_on_first_statement.unwrap_or(false),
         module_loader,
         get_error_class_fn: Some(&get_error_class_name),
-        origin_storage_dir: Some(origin_storage_dir),
+        origin_storage_dir: Some(data_dir.clone()),
         blob_store: BlobStore::default(),
         broadcast_channel: InMemoryBroadcastChannel::default(),
         shared_array_buffer_store: None,
@@ -497,6 +497,18 @@ async fn run(config: Config) -> Result<bool, Error> {
     let reloader_script = format!("window.reloaderId = {};", reloader_resource_id);
     worker
         .execute_script("<reloader>", &reloader_script)
+        .unwrap();
+
+    let data_dir_script = format!(
+        "window.dataDir = \"{}\";",
+        data_dir
+            .into_os_string()
+            .into_string()
+            .unwrap()
+            .replace("\\", "\\\\")
+    );
+    worker
+        .execute_script("<datadir>", &data_dir_script)
         .unwrap();
 
     if config.development {
