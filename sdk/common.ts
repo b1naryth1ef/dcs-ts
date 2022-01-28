@@ -296,3 +296,9 @@ export enum Country {
   CYPRUS = 84,
   SLOVENIA = 85,
 }
+
+declare global {
+  interface Window {
+    dataDir: string;
+  }
+}
