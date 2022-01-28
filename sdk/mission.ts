@@ -40,7 +40,7 @@ export interface TriggerZone {
   x: number;
   y: number;
   zoneId: number;
-  vertices?: [Vec2, Vec2, Vec2, Vec2];
+  verticies?: [Vec2, Vec2, Vec2, Vec2];
 }
 
 export interface Coalition {
