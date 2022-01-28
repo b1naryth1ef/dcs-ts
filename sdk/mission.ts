@@ -1,3 +1,4 @@
+import { Vec2 } from "./common.ts";
 import { runTask } from "./runtime.ts";
 import { parseLuaTable } from "./util/lua.ts";
 
@@ -39,6 +40,7 @@ export interface TriggerZone {
   x: number;
   y: number;
   zoneId: number;
+  vertices?: [Vec2, Vec2, Vec2, Vec2];
 }
 
 export interface Coalition {
