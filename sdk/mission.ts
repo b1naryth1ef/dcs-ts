@@ -87,32 +87,32 @@ export interface StaticUnit {
 }
 
 export interface VehicleUnit {
-  transportable: Transportable;
-  skill: Skill;
+  name: string;
   type: string;
-  unitId: number;
   y: number;
   x: number;
-  name: string;
-  heading: number;
+  heading?: number;
+  skill?: Skill;
+  transportable?: Transportable;
+  unitId?: number;
   modulation?: number;
   frequency?: number;
   playerCanDrive?: boolean;
 }
 
 export interface VehicleGroup {
-  visible: boolean;
-  uncontrollable: boolean;
-  task: string;
-  taskSelected: boolean;
-  groupId: number;
-  hidden: boolean;
+  name: string;
   y: number;
   x: number;
-  name: string;
-  start_time: number;
   units: Array<VehicleUnit>;
-  route: Route;
+  visible?: boolean;
+  hidden?: boolean;
+  uncontrollable?: boolean;
+  task?: string;
+  taskSelected?: boolean;
+  groupId?: number;
+  start_time?: number;
+  route?: Route;
 }
 
 export interface Route {
