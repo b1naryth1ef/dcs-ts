@@ -941,7 +941,9 @@ fns.triggerActionOutSound = function(args)
 end
 
 fns.envGetMission = function(args)
-  return env.mission
+  -- nb: we serialize this because the structure has deep-integer keys that would
+  --  be a pain to manage (not to mention copying this table...)
+  return net.lua2json(env.mission)
 end
 
 fns.createEventProducer = function(args)

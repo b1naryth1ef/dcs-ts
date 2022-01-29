@@ -468,6 +468,7 @@ export async function readMissionFile(path: string): Promise<MissionFile> {
   };
 }
 
-export function getMissionData(): Promise<MissionData> {
-  return runTask<MissionData>("envGetMission");
+export async function getMissionData(): Promise<MissionData> {
+  const missionDataJSON = await runTask<string>("envGetMission");
+  return JSON.parse(missionDataJSON) as MissionData;
 }
