@@ -271,9 +271,7 @@ async fn op_dcs_run_queued_task(
     let (tx, rx) = oneshot::channel();
     {
         let mut runtime = RUNTIME.lock().unwrap();
-        if runtime.is_some() {
-            runtime.as_mut().unwrap().add_queued_task(request, tx);
-        }
+        runtime.as_mut().unwrap().add_queued_task(request, tx);
     }
 
     match rx.await.unwrap() {
@@ -296,9 +294,7 @@ impl Resource for UserChannelResource {
     fn close(self: Rc<Self>) {
         {
             let mut runtime = RUNTIME.lock().unwrap();
-            if runtime.is_some() {
-                runtime.as_mut().unwrap().remove_user_channel(self.id);
-            }
+            runtime.as_mut().unwrap().remove_user_channel(self.id);
         }
     }
 }
@@ -357,36 +353,30 @@ fn op_dcs_create_user_channel(
     _: (),
 ) -> Result<UserChannelHandle, Error> {
     let (tx, rx) = channel::<serde_json::Value>(args.capacity);
-
     let direction = UserChannelDirection::from_u8(args.direction)?;
+    let mut runtime = RUNTIME.lock().unwrap();
 
-    {
-        let mut runtime = RUNTIME.lock().unwrap();
-        if runtime.is_some() {
-            // ToLua means our resource will be a Sender and our UserChannel will be a receiver
-            let resource = if direction == UserChannelDirection::ToLua {
-                let id = runtime
-                    .as_mut()
-                    .unwrap()
-                    .add_user_channel(Either::Right(rx));
-                UserChannelResource {
-                    id,
-                    side: Rc::new(RefCell::new(Either::Left(tx))),
-                }
-            } else {
-                let id = runtime.as_mut().unwrap().add_user_channel(Either::Left(tx));
-                UserChannelResource {
-                    id,
-                    side: Rc::new(RefCell::new(Either::Right(rx))),
-                }
-            };
-
-            let id = resource.id;
-            let resource_id = state.resource_table.add(resource);
-            return Ok(UserChannelHandle { id, resource_id });
+    // ToLua means our resource will be a Sender and our UserChannel will be a receiver
+    let resource = if direction == UserChannelDirection::ToLua {
+        let id = runtime
+            .as_mut()
+            .unwrap()
+            .add_user_channel(Either::Right(rx));
+        UserChannelResource {
+            id,
+            side: Rc::new(RefCell::new(Either::Left(tx))),
         }
-    }
-    Err(generic_error("failed to create channel"))
+    } else {
+        let id = runtime.as_mut().unwrap().add_user_channel(Either::Left(tx));
+        UserChannelResource {
+            id,
+            side: Rc::new(RefCell::new(Either::Right(rx))),
+        }
+    };
+
+    let id = resource.id;
+    let resource_id = state.resource_table.add(resource);
+    return Ok(UserChannelHandle { id, resource_id });
 }
 
 fn trim_newline(s: &mut String) {
@@ -440,12 +430,10 @@ async fn run(mut rx: mpsc::Receiver<GlobalEvent>, config: Config) -> Result<bool
                 op_sync(|_: &mut OpState, _: (), _: ()| {
                     log::debug!("user requested reload");
                     let mut runtime = RUNTIME.lock().unwrap();
-                    if runtime.is_some() {
-                        runtime
-                            .as_mut()
-                            .unwrap()
-                            .dispatch_global_event(GlobalEvent::Reload);
-                    }
+                    runtime
+                        .as_mut()
+                        .unwrap()
+                        .dispatch_global_event(GlobalEvent::Reload);
                     Ok(())
                 }),
             ),

@@ -63,7 +63,8 @@ pub fn init(config: &Config) {
 #[no_mangle]
 pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<()> {
     {
-        if RUNTIME.lock().unwrap().is_none() {
+        let mut runtime = RUNTIME.lock().unwrap();
+        if runtime.is_none() {
             let mut config_path = PathBuf::from(&write_dir);
             config_path.push("Config/ts.json");
 
@@ -80,14 +81,12 @@ pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<()> {
 
             init(&config);
 
-            let runtime = Runtime::new(config.clone());
-            *(RUNTIME.lock().unwrap()) = Some(runtime);
+            *runtime = Some(Runtime::new(config.clone()));
             log::info!("runtime created");
 
-            RUNTIME.lock().unwrap().as_mut().unwrap().initialize();
+            runtime.as_mut().unwrap().initialize();
             log::info!("runtime initialized");
         } else {
-            let mut runtime = RUNTIME.lock().unwrap();
             runtime
                 .as_mut()
                 .unwrap()
@@ -106,85 +105,68 @@ pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<()> {
 
 #[no_mangle]
 pub fn get_queued_tasks(lua: &Lua, _: ()) -> LuaResult<mlua::Value> {
-    let runtime_lock = RUNTIME.lock();
-    return match runtime_lock {
-        Err(_) => {
-            log::debug!("failed to get lock for queued tasks");
-            Ok(mlua::Nil)
-        }
-        Ok(mut runtime) => {
-            if runtime.is_none() {
-                return Err("invalid runtime".to_lua_err());
-            }
+    let mut runtime = RUNTIME.lock().unwrap();
 
-            let table = runtime.as_mut().unwrap().get_queued_tasks(lua);
-            if table.is_some() {
-                log::debug!("get_queued_tasks()",);
-            }
-            Ok(table.unwrap_or(mlua::Nil))
-        }
-    };
+    let table = runtime.as_mut().unwrap().get_queued_tasks(lua);
+    if table.is_some() {
+        log::trace!("get_queued_tasks()",);
+    }
+    Ok(table.unwrap_or(mlua::Nil))
 }
 
 #[no_mangle]
 pub fn add_task_results(lua: &Lua, results: mlua::Table) -> LuaResult<()> {
-    log::debug!("add_task_results");
+    log::trace!("add_task_results()");
+
     let mut runtime = RUNTIME.lock().unwrap();
-    if runtime.is_some() {
-        for result in results.sequence_values() {
-            if let Value::Table(table) = result? {
-                let id: u64 = table.get("id")?;
+    for result in results.sequence_values() {
+        if let Value::Table(table) = result? {
+            let id: u64 = table.get("id")?;
 
-                let maybe_result: LuaResult<TaskResultValue> = lua.from_value(table.get("result")?);
+            let maybe_result: LuaResult<TaskResultValue> = lua.from_value(table.get("result")?);
 
-                match maybe_result {
-                    Ok(result) => {
-                        runtime
-                            .as_mut()
-                            .unwrap()
-                            .complete_task(TaskResult { id, result });
-                    }
-                    Err(error) => {
-                        runtime.as_mut().unwrap().complete_task(TaskResult {
-                            id,
-                            result: TaskResultValue::Error(format!(
-                                "failed to process task result: {}",
-                                error
-                            )),
-                        });
-                    }
+            match maybe_result {
+                Ok(result) => {
+                    runtime
+                        .as_mut()
+                        .unwrap()
+                        .complete_task(TaskResult { id, result });
+                }
+                Err(error) => {
+                    runtime.as_mut().unwrap().complete_task(TaskResult {
+                        id,
+                        result: TaskResultValue::Error(format!(
+                            "failed to process task result: {}",
+                            error
+                        )),
+                    });
                 }
             }
         }
-        return Ok(());
     }
-    Err("invalid runtime".to_lua_err())
+    return Ok(());
 }
 
 #[no_mangle]
 pub fn lua_channel_send(lua: &Lua, (channel, msg): (mlua::Number, mlua::Table)) -> LuaResult<bool> {
-    log::trace!("lua_channel_send (channel = {})", channel);
+    log::trace!("lua_channel_send(channel = {})", channel);
+
     let mut runtime = RUNTIME.lock().unwrap();
-    if runtime.is_some() {
-        let msg_json: serde_json::Value = lua.from_value(mlua::Value::Table(msg))?;
-        return Ok(runtime
-            .as_mut()
-            .unwrap()
-            .send_user_channel_message(channel.round() as u64, msg_json));
-    }
-    Err("invalid runtime".to_lua_err())
+    let msg_json: serde_json::Value = lua.from_value(mlua::Value::Table(msg))?;
+    return Ok(runtime
+        .as_mut()
+        .unwrap()
+        .send_user_channel_message(channel.round() as u64, msg_json));
 }
 
 #[no_mangle]
 pub fn lua_mission_end(_: &Lua, _: ()) -> LuaResult<()> {
-    log::debug!("lua_mission_end()");
+    log::trace!("lua_mission_end()");
     let mut runtime = RUNTIME.lock().unwrap();
-    if runtime.is_some() {
-        runtime
-            .as_mut()
-            .unwrap()
-            .dispatch_global_event(GlobalEvent::MissionEnd);
-    }
+    runtime
+        .as_mut()
+        .unwrap()
+        .dispatch_global_event(GlobalEvent::MissionEnd);
     Ok(())
 }
 
