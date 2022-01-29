@@ -494,6 +494,17 @@ async fn run(config: Config) -> Result<bool, Error> {
         .resource_table
         .add::<ReloaderResource>(reloader_resource);
 
+    worker
+        .execute_script(
+            "<handler>",
+            r#"
+        Deno.core.setPromiseRejectCallback((type, promise, reason) => {
+            console.error("[error]", reason);
+        });
+    "#,
+        )
+        .unwrap();
+
     let reloader_script = format!("window.reloaderId = {};", reloader_resource_id);
     worker
         .execute_script("<reloader>", &reloader_script)
