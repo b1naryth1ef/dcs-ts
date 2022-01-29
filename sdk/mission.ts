@@ -27,7 +27,7 @@ export interface MissionData {
 }
 
 export interface Triggers {
-  zones: Array<TriggerZone>;
+  zones: Array<TriggerZone> | {};
 }
 
 export interface TriggerZone {
