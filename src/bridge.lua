@@ -377,7 +377,7 @@ fns.unitGetRadar = function(args)
   local enabled, target = unit:getRadar()
   return {
     enabled = enabled,
-    target = target
+    target = exportObject(target)
   }
 end
 
