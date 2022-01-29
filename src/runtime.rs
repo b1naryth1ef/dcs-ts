@@ -507,7 +507,9 @@ async fn run(mut rx: mpsc::Receiver<GlobalEvent>, config: Config) -> Result<bool
             "<handler>",
             r#"
         Deno.core.setPromiseRejectCallback((type, promise, reason) => {
-            console.error("[error]", reason);
+            if (type === 0 && reason !== undefined) {
+                console.error("[Promise Rejected]", String(reason));
+            }
         });
     "#,
         )
