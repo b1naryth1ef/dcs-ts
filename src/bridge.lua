@@ -818,6 +818,12 @@ fns.objectGetDesc = function(args)
 
     if category == Object.Category.WEAPON then
       return Weapon.getDesc(object)
+    elseif category == Object.Category.UNIT then
+      return Unit.getDesc(object)
+    elseif category == Object.Category.BASE then
+      return Airbase.getDesc(object)
+    elseif category == Object.Category.STATIC then
+      return StaticObject.getDesc(object)
     end
 
     return nil
