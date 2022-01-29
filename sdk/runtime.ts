@@ -132,7 +132,7 @@ export async function sendChannel(
  * Reload the TypeScript runtime.
  */
 export function reload() {
-  DenoCore.opSync("op_dcs_reload", (window as any).reloaderId);
+  DenoCore.opSync("op_dcs_reload");
 }
 
 (window as any).reload = reload;

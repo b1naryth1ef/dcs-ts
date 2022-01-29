@@ -56,6 +56,32 @@ configure the deno vscode settings to support this file. Example
 }
 ```
 
+### Lifecycle
+
+The script lifecycle of DCS-TS closely follows that of the MSE. To add
+initialization or shutdown behavior you can use one of the built-in events:
+
+- `load` fired when the MSE is initialized, and can be used to bootstrap your
+  code.
+- `missionEnd` fired when the running mission is ending and can be used to
+  shutdown your code.
+- `unload` fired when the MSE is shutting down (will always follow a
+  `missionEnd`), and can be utilized to run your final cleanup.
+
+```typescript
+window.addEventListener("load", () => {
+  console.log("Run our setup here");
+});
+
+window.addEventListener("missionStop", () => {
+  console.log("Handle the mission stopping here");
+});
+
+window.addEventListener("unload", () => {
+  console.log("Run our teardown stuff here");
+});
+```
+
 ## Development Tips
 
 ### Reloading

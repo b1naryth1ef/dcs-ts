@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use thiserror::Error;
 
+use crate::runtime::GlobalEvent;
 use crate::runtime::TaskResultValue;
 
 static INITIALIZED: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
@@ -60,33 +61,38 @@ pub fn init(config: &Config) {
 }
 
 #[no_mangle]
-pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<mlua::Value> {
-    let mut config_path = PathBuf::from(&write_dir);
-    config_path.push("Config/ts.json");
-
-    let file = File::open(config_path)?;
-    let reader = BufReader::new(file);
-    let mut config: Config = match serde_json::from_reader(reader) {
-        Ok(config) => config,
-        Err(error) => {
-            log::error!("failed to load config: {}", error);
-            return Err(error.to_lua_err());
-        }
-    };
-    config.write_dir = Some(write_dir);
-
+pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<()> {
     {
-        if RUNTIME.lock().unwrap().is_some() {
-            return Err("runtime is already initialized".to_lua_err());
+        if RUNTIME.lock().unwrap().is_none() {
+            let mut config_path = PathBuf::from(&write_dir);
+            config_path.push("Config/ts.json");
+
+            let file = File::open(config_path)?;
+            let reader = BufReader::new(file);
+            let mut config: Config = match serde_json::from_reader(reader) {
+                Ok(config) => config,
+                Err(error) => {
+                    log::error!("failed to load config: {}", error);
+                    return Err(error.to_lua_err());
+                }
+            };
+            config.write_dir = Some(write_dir);
+
+            init(&config);
+
+            let runtime = Runtime::new(config.clone());
+            *(RUNTIME.lock().unwrap()) = Some(runtime);
+            log::info!("runtime created");
+
+            RUNTIME.lock().unwrap().as_mut().unwrap().initialize();
+            log::info!("runtime initialized");
+        } else {
+            let mut runtime = RUNTIME.lock().unwrap();
+            runtime
+                .as_mut()
+                .unwrap()
+                .dispatch_global_event(GlobalEvent::Loaded);
         }
-        init(&config);
-
-        let runtime = Runtime::new(config.clone());
-        *(RUNTIME.lock().unwrap()) = Some(runtime);
-        log::info!("runtime created");
-
-        RUNTIME.lock().unwrap().as_mut().unwrap().initialize();
-        log::info!("runtime initialized");
     }
 
     let bytes = include_bytes!("bridge.lua");
@@ -95,7 +101,7 @@ pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<mlua::Value> {
     log::debug!("executing bridge code");
     chunk.exec()?;
     log::debug!("initialization complete");
-    return lua.to_value(&config);
+    Ok(())
 }
 
 #[no_mangle]
@@ -170,6 +176,19 @@ pub fn lua_channel_send(lua: &Lua, (channel, msg): (mlua::Number, mlua::Table)) 
 }
 
 #[no_mangle]
+pub fn lua_mission_end(_: &Lua, _: ()) -> LuaResult<()> {
+    log::debug!("lua_mission_end()");
+    let mut runtime = RUNTIME.lock().unwrap();
+    if runtime.is_some() {
+        runtime
+            .as_mut()
+            .unwrap()
+            .dispatch_global_event(GlobalEvent::MissionEnd);
+    }
+    Ok(())
+}
+
+#[no_mangle]
 pub fn lua_log(_: &Lua, err: String) -> LuaResult<()> {
     log::info!("[lua] {}", err);
     Ok(())
@@ -196,6 +215,7 @@ pub fn dcs_ts(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("log", lua.create_function(lua_log)?)?;
     exports.set("initialize", lua.create_function(initialize)?)?;
+    exports.set("mission_end", lua.create_function(lua_mission_end)?)?;
     exports.set("get_queued_tasks", lua.create_function(get_queued_tasks)?)?;
     exports.set("add_task_results", lua.create_function(add_task_results)?)?;
     exports.set("channel_send", lua.create_function(lua_channel_send)?)?;

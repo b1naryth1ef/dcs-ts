@@ -1,6 +1,6 @@
 use std::{
     backtrace::Backtrace,
-    borrow::{BorrowMut, Cow},
+    borrow::Cow,
     cell::RefCell,
     collections::{HashMap, VecDeque},
     panic,
@@ -96,12 +96,20 @@ pub struct UserChannel {
     side: Either<mpsc::Sender<serde_json::Value>, mpsc::Receiver<serde_json::Value>>,
 }
 
+#[derive(PartialEq, Debug)]
+pub enum GlobalEvent {
+    Loaded,
+    MissionEnd,
+    Reload,
+}
+
 pub struct Runtime {
     task_queue: VecDeque<Task>,
     task_waiters: HashMap<u64, Sender<TaskResultValue>>,
     user_channels: HashMap<u64, UserChannel>,
     id: u64,
     config: Option<Config>,
+    global_events: Option<mpsc::Sender<GlobalEvent>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -125,23 +133,50 @@ impl Runtime {
             user_channels,
             id: 0,
             config: Some(config),
+            global_events: None,
         }
     }
 
     pub fn initialize(&mut self) {
         let config = self.config.clone().unwrap();
+
         thread::spawn(move || {
             let mut rt = runtime::Runtime::new().unwrap();
             let local = task::LocalSet::new();
 
             local.block_on(&mut rt, async move {
+                let mut wait_for_init = false;
+
                 loop {
+                    let (tx, mut rx) = mpsc::channel(1);
+                    {
+                        let mut runtime = RUNTIME.lock().unwrap();
+                        let rt = runtime.as_mut().unwrap();
+                        rt.global_events = Some(tx);
+
+                        // reset everything as its state is now invalid
+                        rt.id = 0;
+                        rt.user_channels.clear();
+                        rt.task_waiters.clear();
+                        rt.task_queue.clear();
+                    }
+
+                    if wait_for_init {
+                        // wait for initialization event
+                        let init_event = rx.recv().await.unwrap();
+                        if init_event != GlobalEvent::Loaded {
+                            log::error!(
+                                "got unexpected event waiting for loaded: {:?}",
+                                init_event
+                            );
+                            return;
+                        }
+                    }
+
                     let config_copy = config.clone();
-                    match run(config_copy).await {
+                    match run(rx, config_copy).await {
                         Ok(should_reload) => {
-                            if !should_reload {
-                                return;
-                            }
+                            wait_for_init = !should_reload;
                         }
                         Err(e) => {
                             log::error!("error running js runtime: {}", e);
@@ -151,6 +186,13 @@ impl Runtime {
                 }
             });
         });
+    }
+
+    pub fn dispatch_global_event(&mut self, event: GlobalEvent) -> bool {
+        if let Some(tx) = &self.global_events {
+            return tx.try_send(event).is_ok();
+        }
+        return false;
     }
 
     pub fn get_queued_tasks<'lua>(&mut self, lua: &'lua mlua::Lua) -> Option<mlua::Value<'lua>> {
@@ -237,16 +279,6 @@ async fn op_dcs_run_queued_task(
     match rx.await.unwrap() {
         TaskResultValue::Ok(value) => Ok(value.unwrap_or(json!(null))),
         TaskResultValue::Error(message) => Err(generic_error(message)),
-    }
-}
-
-pub struct ReloaderResource {
-    tx: mpsc::Sender<()>,
-}
-
-impl Resource for ReloaderResource {
-    fn name(&self) -> Cow<str> {
-        "Reloader".into()
     }
 }
 
@@ -377,9 +409,7 @@ pub fn op_print(_state: &mut OpState, msg: String, is_err: bool) -> Result<(), E
     Ok(())
 }
 
-async fn run(config: Config) -> Result<bool, Error> {
-    let (reload_tx, mut reload_rx) = mpsc::channel::<()>(1);
-
+async fn run(mut rx: mpsc::Receiver<GlobalEvent>, config: Config) -> Result<bool, Error> {
     let mut data_dir = PathBuf::from(&config.write_dir.unwrap());
     data_dir.push("Data");
 
@@ -407,16 +437,15 @@ async fn run(config: Config) -> Result<bool, Error> {
             ),
             (
                 "op_dcs_reload",
-                op_sync(|state: &mut OpState, reloader_id: ResourceId, _: ()| {
-                    log::info!("user requested reload");
-                    state
-                        .resource_table
-                        .get::<ReloaderResource>(reloader_id)
-                        .unwrap()
-                        .borrow_mut()
-                        .tx
-                        .try_send(())
-                        .unwrap();
+                op_sync(|_: &mut OpState, _: (), _: ()| {
+                    log::debug!("user requested reload");
+                    let mut runtime = RUNTIME.lock().unwrap();
+                    if runtime.is_some() {
+                        runtime
+                            .as_mut()
+                            .unwrap()
+                            .dispatch_global_event(GlobalEvent::Reload);
+                    }
                     Ok(())
                 }),
             ),
@@ -485,15 +514,6 @@ async fn run(config: Config) -> Result<bool, Error> {
         log::error!("panic: {}", backtrace);
     }));
 
-    let reloader_resource = ReloaderResource { tx: reload_tx };
-    let reloader_resource_id = worker
-        .js_runtime
-        .op_state()
-        .try_borrow_mut()
-        .unwrap()
-        .resource_table
-        .add::<ReloaderResource>(reloader_resource);
-
     worker
         .execute_script(
             "<handler>",
@@ -503,11 +523,6 @@ async fn run(config: Config) -> Result<bool, Error> {
         });
     "#,
         )
-        .unwrap();
-
-    let reloader_script = format!("window.reloaderId = {};", reloader_resource_id);
-    worker
-        .execute_script("<reloader>", &reloader_script)
         .unwrap();
 
     let data_dir_script = format!(
@@ -526,6 +541,11 @@ async fn run(config: Config) -> Result<bool, Error> {
         // manually register inspector and create a new session
         server.register_inspector(sdk_module.to_string(), &mut worker.js_runtime, false);
         worker.create_inspector_session().await;
+
+        // make sure we stay alive even if our script doesn't do anything active
+        worker
+            .execute_script("<alive>", "setInterval(() => {}, 600000);")
+            .unwrap();
     }
 
     if sdk_module.path() != "file:///sdk.js" {
@@ -552,24 +572,40 @@ async fn run(config: Config) -> Result<bool, Error> {
 
     worker.dispatch_load_event("")?;
 
-    tokio::select! {
-        result = worker.run_event_loop(true) => {
-            match result {
-                Ok(_) => {
-                    log::info!("done running js loop");
+    loop {
+        tokio::select! {
+            result = worker.run_event_loop(true) => {
+                match result {
+                    Ok(_) => {
+                        log::info!("done running js loop");
+                        return Ok(false);
+                    }
+                    Err(error) => {
+                        log::error!("error running js loop: {}", error);
+                        return Err(error);
+                    }
                 }
-                Err(error) => {
-                    log::error!("error running js loop: {}", error);
+            }
+            event = rx.recv() => {
+                worker.dispatch_unload_event("")?;
+
+                if event.is_none() {
+                    return Err(generic_error("global events channel was closed"));
+                }
+
+                match event.unwrap() {
+                    GlobalEvent::Loaded => {
+                        return Err(generic_error("unexpected Loaded event"));
+                    }
+                    GlobalEvent::MissionEnd => {
+                        worker.execute_script("<global>", "dispatchEvent(new CustomEvent('missionEnd'))")?;
+                        return Ok(false);
+                    }
+                    GlobalEvent::Reload => {
+                        return Ok(true);
+                    }
                 }
             }
         }
-        _ = reload_rx.recv() => {
-            log::info!("reload requested");
-            worker.dispatch_unload_event("").unwrap();
-            return Ok(true);
-        }
     }
-
-    log::info!("done");
-    return Ok(false);
 }
