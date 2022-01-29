@@ -73,8 +73,8 @@ window.addEventListener("load", () => {
   console.log("Run our setup here");
 });
 
-window.addEventListener("missionStop", () => {
-  console.log("Handle the mission stopping here");
+window.addEventListener("missionEnd", () => {
+  console.log("Handle the mission ending here");
 });
 
 window.addEventListener("unload", () => {
