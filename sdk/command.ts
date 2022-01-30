@@ -95,7 +95,7 @@ export class CommandManager {
         name = name[0];
       } else {
         name = nameOrPath[nameOrPath.length - 1];
-        path = nameOrPath.slice(1);
+        path = nameOrPath.slice(0, nameOrPath.length - 1);
       }
     } else {
       name = nameOrPath;
