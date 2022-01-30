@@ -15,6 +15,9 @@ import * as Trigger from "./trigger.ts";
 import * as Unit from "./unit.ts";
 import * as World from "./world.ts";
 
+import * as Geo from "./util/geo.ts";
+import * as Lua from "./util/lua.ts";
+
 // Export everything to the window for easy debugging within the console
 (window as any).Atmosphere = Atmosphere;
 (window as any).Coalition = Coalition;
@@ -32,3 +35,7 @@ import * as World from "./world.ts";
 (window as any).Trigger = Trigger;
 (window as any).Unit = Unit;
 (window as any).World = World;
+(window as any).Util = {
+  Geo,
+  Lua,
+};
