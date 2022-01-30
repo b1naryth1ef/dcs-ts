@@ -28,11 +28,12 @@ export function add(
 }
 
 export function addSubMenu(
-  path: Array<string>,
+  path: [string, ...string[]],
   target?: GroupOrCoalition,
 ): Promise<{ path: Array<string> }> {
   return runTask("missionCommandsAddSubMenu", {
-    path,
+    name: path[0],
+    path: path.slice(1),
     target,
   });
 }
