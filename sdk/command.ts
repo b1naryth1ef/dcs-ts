@@ -19,7 +19,7 @@ export function addCommand(
 ): Promise<CommandHandle> {
   return runTask("missionCommandsAddCommand", {
     name: path[path.length - 1],
-    path: path.length > 1 ? path.slice(0, path.length - 1) : null,
+    path: path.length > 1 ? path.slice(0, path.length - 1) : undefined,
     target,
     channel,
   });
@@ -28,10 +28,10 @@ export function addCommand(
 export function addSubMenu(
   path: [string, ...string[]],
   target?: GroupOrCoalition,
-): Promise<{ path: Array<string> }> {
+): Promise<CommandHandle> {
   return runTask("missionCommandsAddSubMenu", {
     name: path[path.length - 1],
-    path: path.length > 1 ? path.slice(0, path.length - 1) : null,
+    path: path.length > 1 ? path.slice(0, path.length - 1) : undefined,
     target,
   });
 }
