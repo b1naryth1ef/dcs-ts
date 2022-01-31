@@ -118,7 +118,7 @@ type GroupCommandHandler = (e: GroupCommandEvent) => Promise<void>;
 
 type GroupCommand = {
   path: [string, ...string[]];
-  handler: GroupCommandHandler;
+  handler?: GroupCommandHandler;
 };
 
 export class GroupCommandSet {
@@ -141,13 +141,13 @@ export class GroupCommandSet {
         continue;
       }
 
-      command.handler(event as GroupCommandEvent);
+      if (command.handler) command.handler(event as GroupCommandEvent);
     }
   }
 
   async addCommand(
     path: [string, ...string[]],
-    handler: GroupCommandHandler,
+    handler?: GroupCommandHandler,
   ): Promise<string> {
     const id = commandPathToString(path);
     if (this.commands.has(id)) {
@@ -163,7 +163,11 @@ export class GroupCommandSet {
 
     await Promise.all(
       Array.from(this.groups).map((group) => {
-        return addCommand(path, this.channel, { group });
+        if (handler !== undefined) {
+          return addCommand(path, this.channel, { group });
+        } else {
+          return addSubMenu(path, { group });
+        }
       }),
     );
 
@@ -181,33 +185,39 @@ export class GroupCommandSet {
     this.commands.delete(target);
     await Promise.all(
       Array.from(this.groups).map((group) => {
-        return removeItem(command.path);
+        return removeItem(command.path, { group });
       }),
     );
   }
 
-  async addGroup(name: string): Promise<void> {
-    if (this.groups.has(name)) {
+  async addGroup(group: string): Promise<void> {
+    if (this.groups.has(group)) {
       return;
     }
 
-    this.groups.add(name);
+    this.groups.add(group);
     await Promise.all(
       Array.from(this.commands.values()).map((command) => {
-        addCommand(command.path, this.channel, { group: name });
+        if (command.handler !== undefined) {
+          addCommand(command.path, this.channel, { group });
+        } else {
+          addSubMenu(command.path, { group });
+        }
       }),
     );
   }
 
-  async removeGroup(name: string): Promise<void> {
-    if (!this.groups.has(name)) {
+  async removeGroup(group: string): Promise<void> {
+    if (!this.groups.has(group)) {
       return;
     }
 
-    this.groups.delete(name);
+    this.groups.delete(group);
     await Promise.all(
       Array.from(this.commands.values()).map((command) => {
-        addCommand(command.path, this.channel, { group: name });
+        if (command.handler !== undefined) {
+          removeItem(command.path);
+        }
       }),
     );
   }
