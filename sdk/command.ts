@@ -224,10 +224,8 @@ export class GroupCommandSet {
 
     this.groups.delete(group);
     await Promise.all(
-      Array.from(this.commands.values()).map((command) => {
-        if (command.handler !== undefined) {
-          removeItem(command.path, { group });
-        }
+      Array.from(this.commands.values()).map(async (command) => {
+        await removeItem(command.path, { group });
       }),
     );
   }
