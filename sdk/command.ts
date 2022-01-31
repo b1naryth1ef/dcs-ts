@@ -8,22 +8,20 @@ import {
 import { GroupOrCoalition } from "./common.ts";
 
 export type CommandHandle = {
-  id: number;
-  path: Array<string>;
+  path: [string, ...string[]];
   target?: GroupOrCoalition;
 };
 
-export function add(
-  name: string,
+export function addCommand(
+  path: [string, ...string[]],
   channel: ChannelHandle,
-  path?: Array<string>,
   target?: GroupOrCoalition,
 ): Promise<CommandHandle> {
   return runTask("missionCommandsAddCommand", {
-    name,
-    channel,
-    path,
+    name: path[path.length - 1],
+    path: path.length > 1 ? path.slice(0, path.length - 1) : null,
     target,
+    channel,
   });
 }
 
@@ -38,11 +36,11 @@ export function addSubMenu(
   });
 }
 
-export function remove(
-  path: Array<string> | CommandHandle,
+export function removeItem(
+  path: [string, ...string[]] | CommandHandle,
   target?: GroupOrCoalition,
 ): Promise<void> {
-  if ("id" in path) {
+  if (!Array.isArray(path)) {
     target = path.target;
     path = path.path;
   }
@@ -53,12 +51,19 @@ export function remove(
   });
 }
 
+export type CommandPath = [string, ...string[]];
+
+export const commandPathToString = (path: CommandPath) => {
+  return path.join(".");
+};
+
 export type CommandEvent = {
-  id: number;
+  path: [string, ...string[]];
+  target?: GroupOrCoalition;
 };
 
 export class CommandManager {
-  commands: Map<number, (e: CommandEvent) => unknown> = new Map();
+  commands: Map<string, (e: CommandEvent) => unknown> = new Map();
   private channel: ChannelHandle;
 
   constructor(autoStartStream: boolean = true) {
@@ -70,7 +75,7 @@ export class CommandManager {
 
   async stream() {
     for await (const event of this.streamCommandEvents()) {
-      const fn = this.commands.get(event.id);
+      const fn = this.commands.get(commandPathToString(event.path));
       if (fn !== undefined) {
         fn(event);
       }
@@ -84,32 +89,126 @@ export class CommandManager {
   }
 
   async add(
-    nameOrPath: string | Array<string>,
+    nameOrPath: string | [string, ...string[]],
     fn: (e: CommandEvent) => unknown,
     target?: GroupOrCoalition,
   ): Promise<CommandHandle> {
-    let name = "";
-    let path: Array<string> = [];
-    if (typeof nameOrPath !== "string") {
-      if (nameOrPath.length <= 1) {
-        name = name[0];
-      } else {
-        name = nameOrPath[nameOrPath.length - 1];
-        path = nameOrPath.slice(0, nameOrPath.length - 1);
-      }
-    } else {
-      name = nameOrPath;
-    }
-
-    const handle = await add(name, this.channel, path, target);
-    this.commands.set(handle.id, fn);
+    const handle = await addCommand(
+      typeof nameOrPath === "string" ? [nameOrPath] : nameOrPath,
+      this.channel,
+      target,
+    );
+    this.commands.set(commandPathToString(handle.path), fn);
     return handle;
   }
 
   async remove(
     handle: CommandHandle,
   ) {
-    this.commands.delete(handle.id);
-    await remove(handle);
+    this.commands.delete(commandPathToString(handle.path));
+    await removeItem(handle);
+  }
+}
+
+export type GroupCommandEvent = CommandEvent & {
+  target: { group: string };
+};
+
+type GroupCommandHandler = (e: GroupCommandEvent) => Promise<void>;
+
+type GroupCommand = {
+  path: [string, ...string[]];
+  handler: GroupCommandHandler;
+};
+
+export class GroupCommandSet {
+  private groups: Set<string> = new Set();
+  private commands: Map<string, GroupCommand> = new Map();
+  private channel: ChannelHandle = createChannel(ChannelDirection.FROM_LUA);
+
+  constructor() {
+    this.run();
+  }
+
+  private async run() {
+    while (true) {
+      const event = await waitChannel<CommandEvent>(this.channel);
+      const command = this.commands.get(commandPathToString(event.path));
+      if (command === undefined) {
+        console.error(
+          `[GroupCommandSet] event references un-registered command ${event.path}`,
+        );
+        continue;
+      }
+
+      command.handler(event as GroupCommandEvent);
+    }
+  }
+
+  async addCommand(
+    path: [string, ...string[]],
+    handler: GroupCommandHandler,
+  ): Promise<string> {
+    const id = commandPathToString(path);
+    if (this.commands.has(id)) {
+      throw new Error(
+        `addCommand called for command that already exists (${path})`,
+      );
+    }
+
+    this.commands.set(id, {
+      path,
+      handler,
+    });
+
+    await Promise.all(
+      Array.from(this.groups).map((group) => {
+        return addCommand(path, this.channel, { group });
+      }),
+    );
+
+    return id;
+  }
+
+  async removeCommand(target: string): Promise<void> {
+    const command = this.commands.get(target);
+    if (command === undefined) {
+      throw new Error(
+        `removeCommand called for command that has already been removed (${target})`,
+      );
+    }
+
+    this.commands.delete(target);
+    await Promise.all(
+      Array.from(this.groups).map((group) => {
+        return removeItem(command.path);
+      }),
+    );
+  }
+
+  async addGroup(name: string): Promise<void> {
+    if (this.groups.has(name)) {
+      return;
+    }
+
+    this.groups.add(name);
+    await Promise.all(
+      Array.from(this.commands.values()).map((command) => {
+        addCommand(command.path, this.channel, { group: name });
+      }),
+    );
+  }
+
+  async removeGroup(name: string): Promise<void> {
+    if (!this.groups.has(name)) {
+      return;
+    }
+
+    this.groups.delete(name);
+    await Promise.all(
+      Array.from(this.commands.values()).map((command) => {
+        addCommand(command.path, this.channel, { group: name });
+      }),
+    );
   }
 }

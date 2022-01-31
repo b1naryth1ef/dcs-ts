@@ -142,6 +142,10 @@ export type UnitWatcherUpdate = {
   removed?: Array<string>;
 };
 
+export interface UnitWatcherOptions {
+  extra?: Record<"life" | "ammo" | "radar" | "fuel", boolean>;
+}
+
 /**
  * UnitWatcher watches a set of units, streaming updates and removals on a configurable
  * interval. This stream of events can be processed manually or piped directly into
@@ -152,13 +156,13 @@ export class UnitWatcher {
 
   static async create(
     updateIntervalSeconds = 1,
-    lerp?: number,
+    opts: UnitWatcherOptions = {},
   ): Promise<UnitWatcher> {
     const channel = createChannel(ChannelDirection.FROM_LUA);
     const id = await runTask<number>("unitWatcherCreate", {
       updateIntervalSeconds,
-      lerp,
       channel,
+      opts,
     });
     return new UnitWatcher(id, channel);
   }

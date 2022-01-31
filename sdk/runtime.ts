@@ -144,6 +144,13 @@ export function reload() {
   DenoCore.opSync("op_dcs_reload");
 }
 
+/**
+ * Returns the current DCS version.
+ */
+export function getDCSVersion(): Promise<string> {
+  return runTask<string>("getDCSVersion", {});
+}
+
 (window as any).reload = reload;
 (window as any).runTask = runTask;
 (window as any).luaEval = luaEval;
