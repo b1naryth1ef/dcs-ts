@@ -176,11 +176,28 @@ fns.triggerActionRemoveMark = function(args)
   trigger.action.removeMark(args.id)
 end
 
+local function convertLocation(location)
+  if location.x ~= nil then
+    return location
+  else
+    return coord.LLtoLO(location[1], location[2], location[3])
+  end
+end
+
 fns.triggerActionLine = function(args)
-  local startpos = coord.LLtoLO(args.start[1], args.start[2], args.start[3])
-  local endpos = coord.LLtoLO(args.end_[1], args.end_[2], args.end_[3])
-  trigger.action.lineToAll(args.coalition, args.id, startpos, endpos, args.color, args.lineType, args.readOnly,
+  trigger.action.lineToAll(args.coalition, args.id, convertLocation(args.start), convertLocation(args.end_), args.color, args.lineType, args.readOnly,
     args.message)
+end
+
+fns.triggerActionQuad = function(args)
+  local quad = {}
+  for _, location in ipairs(args.quad) do
+    table.insert(quad, convertLocation(location))
+  end
+
+  trigger.action.quadToAll(args.coalition, args.id, convertLocation(args.quad[1]), convertLocation(args.quad[2]),
+    convertLocation(args.quad[3]), convertLocation(args.quad[4]), args.color, args.fillColor, args.lineType,
+    args.readOnly, args.message)
 end
 
 fns.getTime = function(args)
