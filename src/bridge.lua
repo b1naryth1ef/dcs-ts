@@ -858,7 +858,19 @@ fns.objectGet = function(args)
 end
 
 fns.objectDestroy = function(args)
-  Object.destroy(getObject(args.object))
+  if args.object.unit ~= nil then
+    Unit.getByName(args.object.unit):destroy()
+  elseif args.object.group ~= nil then
+    Group.getByName(args.object.group):destroy()
+  elseif args.object.airbase ~= nil then
+    Airbase.getByName(args.object.airbase):destroy()
+  elseif args.object.staticObject ~= nil then
+    StaticObject.getByName(args.object.staticObject):destroy()
+  elseif args.object.id ~= nil then
+    return Object.destroy({
+      id_ = args.object.id
+    })
+  end
 end
 
 fns.getMarkPanels = function(args)

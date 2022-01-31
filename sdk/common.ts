@@ -104,6 +104,7 @@ export type Group = {
 
 export type ObjectRef = (
   | { unit: string }
+  | { group: string }
   | { weapon: string }
   | { airbase: string }
   | { staticObject: string }
