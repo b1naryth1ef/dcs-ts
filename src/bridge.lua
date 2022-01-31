@@ -529,9 +529,8 @@ fns.missionCommandsAddCommand = function(args)
   end
   table.insert(handle, args.name)
 
-  local path = {}
   if args.target == nil then
-    path = missionCommands.addCommand(args.name, args.path, function()
+    missionCommands.addCommand(args.name, args.path, function()
       if not ts.channel_send(args.channel.id, {
         path = handle
       }) then
@@ -544,7 +543,7 @@ fns.missionCommandsAddCommand = function(args)
       error("no group found by name " .. args.target.group)
     end
 
-    path = missionCommands.addCommandForGroup(group:getID(), args.name, args.path, function()
+    missionCommands.addCommandForGroup(group:getID(), args.name, args.path, function()
       if not ts.channel_send(args.channel.id, {
         path = handle,
         target = args.target
@@ -553,7 +552,7 @@ fns.missionCommandsAddCommand = function(args)
       end
     end)
   elseif args.target.coalition ~= nil then
-    path = missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path, function()
+    missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path, function()
       if not ts.channel_send(args.channel.id, {
         path = handle,
         target = args.target
@@ -566,28 +565,39 @@ fns.missionCommandsAddCommand = function(args)
   end
 
   return {
-    path = path,
+    path = handle,
     target = args.target
   }
 end
 
 fns.missionCommandsAddSubMenu = function(args)
+  local handle = {}
+  if args.path ~= nil then
+    for _, item in ipairs(args.path) do
+      table.insert(handle, item)
+    end
+  end
+
+  table.insert(handle, args.name)
   if args.target == nil then
+    missionCommands.addSubMenu(args.name, args.path)
     return {
-      path = missionCommands.addSubMenu(args.name, args.path)
+      path = handle
     }
   elseif args.target.group ~= nil then
     local group = Group.getByName(args.target.group)
     if group == nil then
       error("no group found by name " .. args.target.group)
     end
+    missionCommands.addSubMenuForGroup(group:getID(), args.name, args.path)
     return {
-      path = missionCommands.addSubMenuForGroup(group:getID(), args.name, args.path),
+      path = handle,
       target = args.target
     }
   elseif args.target.coalition ~= nil then
+    missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path)
     return {
-      path = missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path),
+      path = handle,
       target = args.target
     }
   else

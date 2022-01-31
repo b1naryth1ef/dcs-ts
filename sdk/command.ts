@@ -226,7 +226,7 @@ export class GroupCommandSet {
     await Promise.all(
       Array.from(this.commands.values()).map((command) => {
         if (command.handler !== undefined) {
-          removeItem(command.path);
+          removeItem(command.path, { group });
         }
       }),
     );
