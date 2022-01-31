@@ -197,7 +197,17 @@ export class GroupCommandSet {
 
     this.groups.add(group);
     await Promise.all(
-      Array.from(this.commands.values()).map((command) => {
+      Array.from(this.commands.values()).sort((a, b) => {
+        if (a.handler === undefined && b.handler === undefined) {
+          return 0;
+        } else if (a.handler === undefined) {
+          return -1;
+        } else if (b.handler === undefined) {
+          return 1;
+        }
+
+        return 0;
+      }).map((command) => {
         if (command.handler !== undefined) {
           addCommand(command.path, this.channel, { group });
         } else {
