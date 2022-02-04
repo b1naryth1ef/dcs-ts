@@ -94,6 +94,9 @@ export function createChannel(
   });
 }
 
+export class ChannelClosedError extends Error {
+}
+
 /**
  * Waits for a message to arrive on a channel opened with ChannelDirection.FROM_LUA.
  *
@@ -105,11 +108,17 @@ export async function waitChannel<T = unknown>(
 export async function waitChannel<T = unknown>(
   channel: ChannelHandle,
   timeout?: number,
-): Promise<T | null> {
-  return await DenoCore.opAsync("op_dcs_user_channel_wait", {
+): Promise<T> {
+  const result = await DenoCore.opAsync("op_dcs_user_channel_wait", {
     channel,
     timeout,
-  });
+  }) as T | null;
+  if (result === null) {
+    throw new ChannelClosedError(
+      `Channel ${channel.id} was closed while being waited on.`,
+    );
+  }
+  return result;
 }
 
 /**
@@ -132,7 +141,14 @@ export async function sendChannel(
  * Reload the TypeScript runtime.
  */
 export function reload() {
-  DenoCore.opSync("op_dcs_reload", (window as any).reloaderId);
+  DenoCore.opSync("op_dcs_reload");
+}
+
+/**
+ * Returns the current DCS version.
+ */
+export function getDCSVersion(): Promise<string> {
+  return runTask<string>("getDCSVersion", {});
 }
 
 (window as any).reload = reload;

@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use thiserror::Error;
 
+use crate::runtime::GlobalEvent;
 use crate::runtime::TaskResultValue;
 
 static INITIALIZED: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
@@ -60,33 +61,37 @@ pub fn init(config: &Config) {
 }
 
 #[no_mangle]
-pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<mlua::Value> {
-    let mut config_path = PathBuf::from(&write_dir);
-    config_path.push("Config/ts.json");
-
-    let file = File::open(config_path)?;
-    let reader = BufReader::new(file);
-    let mut config: Config = match serde_json::from_reader(reader) {
-        Ok(config) => config,
-        Err(error) => {
-            log::error!("failed to load config: {}", error);
-            return Err(error.to_lua_err());
-        }
-    };
-    config.write_dir = Some(write_dir);
-
+pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<()> {
     {
-        if RUNTIME.lock().unwrap().is_some() {
-            return Err("runtime is already initialized".to_lua_err());
+        let mut runtime = RUNTIME.lock().unwrap();
+        if runtime.is_none() {
+            let mut config_path = PathBuf::from(&write_dir);
+            config_path.push("Config/ts.json");
+
+            let file = File::open(config_path)?;
+            let reader = BufReader::new(file);
+            let mut config: Config = match serde_json::from_reader(reader) {
+                Ok(config) => config,
+                Err(error) => {
+                    log::error!("failed to load config: {}", error);
+                    return Err(error.to_lua_err());
+                }
+            };
+            config.write_dir = Some(write_dir);
+
+            init(&config);
+
+            *runtime = Some(Runtime::new(config.clone()));
+            log::info!("runtime created");
+
+            runtime.as_mut().unwrap().initialize();
+            log::info!("runtime initialized");
+        } else {
+            runtime
+                .as_mut()
+                .unwrap()
+                .dispatch_global_event(GlobalEvent::Loaded);
         }
-        init(&config);
-
-        let runtime = Runtime::new(config.clone());
-        *(RUNTIME.lock().unwrap()) = Some(runtime);
-        log::info!("runtime created");
-
-        RUNTIME.lock().unwrap().as_mut().unwrap().initialize();
-        log::info!("runtime initialized");
     }
 
     let bytes = include_bytes!("bridge.lua");
@@ -95,78 +100,74 @@ pub fn initialize(lua: &Lua, write_dir: String) -> LuaResult<mlua::Value> {
     log::debug!("executing bridge code");
     chunk.exec()?;
     log::debug!("initialization complete");
-    return lua.to_value(&config);
+    Ok(())
 }
 
 #[no_mangle]
 pub fn get_queued_tasks(lua: &Lua, _: ()) -> LuaResult<mlua::Value> {
-    let runtime_lock = RUNTIME.lock();
-    return match runtime_lock {
-        Err(_) => {
-            log::debug!("failed to get lock for queued tasks");
-            Ok(mlua::Nil)
-        }
-        Ok(mut runtime) => {
-            if runtime.is_none() {
-                return Err("invalid runtime".to_lua_err());
-            }
+    let mut runtime = RUNTIME.lock().unwrap();
 
-            let table = runtime.as_mut().unwrap().get_queued_tasks(lua);
-            if table.is_some() {
-                log::debug!("get_queued_tasks()",);
-            }
-            Ok(table.unwrap_or(mlua::Nil))
-        }
-    };
+    let table = runtime.as_mut().unwrap().get_queued_tasks(lua);
+    if table.is_some() {
+        log::trace!("get_queued_tasks()",);
+    }
+    Ok(table.unwrap_or(mlua::Nil))
 }
 
 #[no_mangle]
 pub fn add_task_results(lua: &Lua, results: mlua::Table) -> LuaResult<()> {
-    log::debug!("add_task_results");
+    log::trace!("add_task_results()");
+
     let mut runtime = RUNTIME.lock().unwrap();
-    if runtime.is_some() {
-        for result in results.sequence_values() {
-            if let Value::Table(table) = result? {
-                let id: u64 = table.get("id")?;
+    for result in results.sequence_values() {
+        if let Value::Table(table) = result? {
+            let id: u64 = table.get("id")?;
 
-                let maybe_result: LuaResult<TaskResultValue> = lua.from_value(table.get("result")?);
+            let maybe_result: LuaResult<TaskResultValue> = lua.from_value(table.get("result")?);
 
-                match maybe_result {
-                    Ok(result) => {
-                        runtime
-                            .as_mut()
-                            .unwrap()
-                            .complete_task(TaskResult { id, result });
-                    }
-                    Err(error) => {
-                        runtime.as_mut().unwrap().complete_task(TaskResult {
-                            id,
-                            result: TaskResultValue::Error(format!(
-                                "failed to process task result: {}",
-                                error
-                            )),
-                        });
-                    }
+            match maybe_result {
+                Ok(result) => {
+                    runtime
+                        .as_mut()
+                        .unwrap()
+                        .complete_task(TaskResult { id, result });
+                }
+                Err(error) => {
+                    runtime.as_mut().unwrap().complete_task(TaskResult {
+                        id,
+                        result: TaskResultValue::Error(format!(
+                            "failed to process task result: {}",
+                            error
+                        )),
+                    });
                 }
             }
         }
-        return Ok(());
     }
-    Err("invalid runtime".to_lua_err())
+    return Ok(());
 }
 
 #[no_mangle]
 pub fn lua_channel_send(lua: &Lua, (channel, msg): (mlua::Number, mlua::Table)) -> LuaResult<bool> {
-    log::trace!("lua_channel_send (channel = {})", channel);
+    log::trace!("lua_channel_send(channel = {})", channel);
+
     let mut runtime = RUNTIME.lock().unwrap();
-    if runtime.is_some() {
-        let msg_json: serde_json::Value = lua.from_value(mlua::Value::Table(msg))?;
-        return Ok(runtime
-            .as_mut()
-            .unwrap()
-            .send_user_channel_message(channel.round() as u64, msg_json));
-    }
-    Err("invalid runtime".to_lua_err())
+    let msg_json: serde_json::Value = lua.from_value(mlua::Value::Table(msg))?;
+    return Ok(runtime
+        .as_mut()
+        .unwrap()
+        .send_user_channel_message(channel.round() as u64, msg_json));
+}
+
+#[no_mangle]
+pub fn lua_mission_end(_: &Lua, _: ()) -> LuaResult<()> {
+    log::trace!("lua_mission_end()");
+    let mut runtime = RUNTIME.lock().unwrap();
+    runtime
+        .as_mut()
+        .unwrap()
+        .dispatch_global_event(GlobalEvent::MissionEnd);
+    Ok(())
 }
 
 #[no_mangle]
@@ -196,6 +197,7 @@ pub fn dcs_ts(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("log", lua.create_function(lua_log)?)?;
     exports.set("initialize", lua.create_function(initialize)?)?;
+    exports.set("mission_end", lua.create_function(lua_mission_end)?)?;
     exports.set("get_queued_tasks", lua.create_function(get_queued_tasks)?)?;
     exports.set("add_task_results", lua.create_function(add_task_results)?)?;
     exports.set("channel_send", lua.create_function(lua_channel_send)?)?;

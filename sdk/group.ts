@@ -1,4 +1,4 @@
-import { Country, GroupCategory, Position, Unit } from "./common.ts";
+import { Country, GroupCategory, Position, Unit, Vec2 } from "./common.ts";
 import {
   HelicopterGroup,
   HelicopterUnit,
@@ -35,29 +35,29 @@ export interface CreateCallsign {
   name: string;
 }
 
-export type CreateShipUnit = Omit<ShipUnit, "x" | "y"> & {
-  position: Position;
-};
+type PositionOrPoint = { position: Position } | Vec2;
+
+export type CreateShipUnit = Omit<ShipUnit, "x" | "y"> & PositionOrPoint;
 
 export type CreatePlaneUnit =
   & Omit<PlaneUnit, "x" | "y" | "alt" | "callsign" | "payload">
   & {
-    position: Position;
     callsign: CreateCallsign;
     payload: CreatePlanePayload;
-  };
+  }
+  & PositionOrPoint;
 
-export type CreateVehicleUnit = Omit<VehicleUnit, "x" | "y"> & {
-  position: Position;
-};
+export type CreateVehicleUnit =
+  & Omit<VehicleUnit, "x" | "y">
+  & PositionOrPoint;
 
 export type CreateHelicopterUnit =
   & Omit<HelicopterUnit, "x" | "y" | "alt" | "callsign" | "payload">
   & {
-    position: Position;
     callsign: CreateCallsign;
     payload: CreatePlanePayload;
-  };
+  }
+  & PositionOrPoint;
 
 export type CreateShipGroup = Omit<ShipGroup, "units" | "x" | "y"> & {
   units: Array<CreateShipUnit>;

@@ -5,6 +5,7 @@ import {
   Position,
   RadioModulation,
   Unit,
+  Vec3,
 } from "./common.ts";
 import { runTask } from "./runtime.ts";
 
@@ -240,10 +241,12 @@ export enum LineType {
   DOUBLE_DASHED = 6,
 }
 
+export type Location = Position | Vec3;
+
 export function drawLine(
   id: number,
-  start: Position,
-  end: Position,
+  start: Location,
+  end: Location,
   color: [number, number, number, number],
   lineType: LineType,
   readOnly?: boolean,
@@ -254,6 +257,28 @@ export function drawLine(
     id,
     start,
     end_: end,
+    color,
+    lineType,
+    readOnly,
+    message,
+    coalition,
+  });
+}
+
+export function drawQuad(
+  id: number,
+  quad: [Location, Location, Location, Location],
+  color: [number, number, number, number],
+  fillColor: [number, number, number, number],
+  lineType: LineType,
+  readOnly?: boolean,
+  message?: string,
+  coalition = CoalitionType.ALL,
+) {
+  return runTask("triggerActionQuad", {
+    id,
+    quad,
+    fillColor,
     color,
     lineType,
     readOnly,

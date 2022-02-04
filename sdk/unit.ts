@@ -92,10 +92,59 @@ export class UnitView {
   }
 }
 
+export function isActive(name: string): Promise<boolean> {
+  return runTask<boolean>("unitGetIsActive", { name });
+}
+
+export function getLife(name: string): Promise<UnitLife> {
+  return runTask<UnitLife>("unitGetLife", { name });
+}
+
+export function getAmmo(name: string): Promise<UnitAmmo> {
+  return runTask<UnitAmmo>("unitGetAmmo", { name });
+}
+
+export function getSensors(name: string): Promise<Record<number, unknown>> {
+  return runTask<Record<number, unknown>>("unitGetSensors", {
+    name: name,
+  });
+}
+
+export function getRadar(name: string): Promise<UnitRadar> {
+  return runTask<UnitRadar>("unitGetRadar", {
+    name: name,
+  });
+}
+
+export function getFuel(name: string): Promise<number> {
+  return runTask<number>("unitGetFuel", { name });
+}
+
+export function getDrawArgumentValue(
+  name: string,
+  arg: number,
+): Promise<number> {
+  return runTask<number>("unitGetDrawArgumentValue", {
+    name,
+    arg,
+  });
+}
+
+export function setEmission(name: string, value: boolean): Promise<void> {
+  return runTask<void>("unitSetEmission", {
+    name,
+    value,
+  });
+}
+
 export type UnitWatcherUpdate = {
   updated?: Array<Unit>;
   removed?: Array<string>;
 };
+
+export interface UnitWatcherOptions {
+  extra?: Record<"life" | "ammo" | "radar" | "fuel", boolean>;
+}
 
 /**
  * UnitWatcher watches a set of units, streaming updates and removals on a configurable
@@ -107,13 +156,13 @@ export class UnitWatcher {
 
   static async create(
     updateIntervalSeconds = 1,
-    lerp?: number,
+    opts: UnitWatcherOptions = {},
   ): Promise<UnitWatcher> {
     const channel = createChannel(ChannelDirection.FROM_LUA);
     const id = await runTask<number>("unitWatcherCreate", {
       updateIntervalSeconds,
-      lerp,
       channel,
+      opts,
     });
     return new UnitWatcher(id, channel);
   }

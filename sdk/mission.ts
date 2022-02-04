@@ -1,3 +1,4 @@
+import { Vec2 } from "./common.ts";
 import { runTask } from "./runtime.ts";
 import { parseLuaTable } from "./util/lua.ts";
 
@@ -26,7 +27,7 @@ export interface MissionData {
 }
 
 export interface Triggers {
-  zones: Array<TriggerZone>;
+  zones: Array<TriggerZone> | {};
 }
 
 export interface TriggerZone {
@@ -39,6 +40,7 @@ export interface TriggerZone {
   x: number;
   y: number;
   zoneId: number;
+  verticies?: [Vec2, Vec2, Vec2, Vec2];
 }
 
 export interface Coalition {
@@ -85,32 +87,32 @@ export interface StaticUnit {
 }
 
 export interface VehicleUnit {
-  transportable: Transportable;
-  skill: Skill;
+  name: string;
   type: string;
-  unitId: number;
   y: number;
   x: number;
-  name: string;
-  heading: number;
+  heading?: number;
+  skill?: Skill;
+  transportable?: Transportable;
+  unitId?: number;
   modulation?: number;
   frequency?: number;
   playerCanDrive?: boolean;
 }
 
 export interface VehicleGroup {
-  visible: boolean;
-  uncontrollable: boolean;
-  task: string;
-  taskSelected: boolean;
-  groupId: number;
-  hidden: boolean;
+  name: string;
   y: number;
   x: number;
-  name: string;
-  start_time: number;
   units: Array<VehicleUnit>;
-  route: Route;
+  visible?: boolean;
+  hidden?: boolean;
+  uncontrollable?: boolean;
+  task?: string;
+  taskSelected?: boolean;
+  groupId?: number;
+  start_time?: number;
+  route?: Route;
 }
 
 export interface Route {
@@ -466,6 +468,7 @@ export async function readMissionFile(path: string): Promise<MissionFile> {
   };
 }
 
-export function getMissionData(): Promise<MissionData> {
-  return runTask<MissionData>("envGetMission");
+export async function getMissionData(): Promise<MissionData> {
+  const missionDataJSON = await runTask<string>("envGetMission");
+  return JSON.parse(missionDataJSON) as MissionData;
 }

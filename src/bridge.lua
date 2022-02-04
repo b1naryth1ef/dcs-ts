@@ -176,11 +176,28 @@ fns.triggerActionRemoveMark = function(args)
   trigger.action.removeMark(args.id)
 end
 
+local function convertLocation(location)
+  if location.x ~= nil then
+    return location
+  else
+    return coord.LLtoLO(location[1], location[2], location[3])
+  end
+end
+
 fns.triggerActionLine = function(args)
-  local startpos = coord.LLtoLO(args.start[1], args.start[2], args.start[3])
-  local endpos = coord.LLtoLO(args.end_[1], args.end_[2], args.end_[3])
-  trigger.action.lineToAll(args.coalition, args.id, startpos, endpos, args.color, args.lineType, args.readOnly,
+  trigger.action.lineToAll(args.coalition, args.id, convertLocation(args.start), convertLocation(args.end_), args.color, args.lineType, args.readOnly,
     args.message)
+end
+
+fns.triggerActionQuad = function(args)
+  local quad = {}
+  for _, location in ipairs(args.quad) do
+    table.insert(quad, convertLocation(location))
+  end
+
+  trigger.action.quadToAll(args.coalition, args.id, convertLocation(args.quad[1]), convertLocation(args.quad[2]),
+    convertLocation(args.quad[3]), convertLocation(args.quad[4]), args.color, args.fillColor, args.lineType,
+    args.readOnly, args.message)
 end
 
 fns.getTime = function(args)
@@ -377,7 +394,7 @@ fns.unitGetRadar = function(args)
   local enabled, target = unit:getRadar()
   return {
     enabled = enabled,
-    target = target
+    target = exportObject(target)
   }
 end
 
@@ -520,24 +537,21 @@ fns.netGetSlot = function(args)
   return net.get_slot(args.playerId)
 end
 
-commandId = 1
-
 fns.missionCommandsAddCommand = function(args)
-  local id = commandId
-  commandId = commandId + 1
+  local handle = {}
+  if args.path ~= nil then
+    for _, item in ipairs(args.path) do
+      table.insert(handle, item)
+    end
+  end
+  table.insert(handle, args.name)
 
-  local path = {}
   if args.target == nil then
-    path = missionCommands.addCommand(args.name, args.path, function()
+    missionCommands.addCommand(args.name, args.path, function()
       if not ts.channel_send(args.channel.id, {
-        id = id
+        path = handle
       }) then
-        local path = args.path
-        if path == nil then
-          path = {}
-        end
-        table.insert(path, 1, args.name)
-        missionCommands.removeItemForGroup(path)
+        missionCommands.removeItemForGroup(handle)
       end
     end)
   elseif args.target.group ~= nil then
@@ -546,29 +560,21 @@ fns.missionCommandsAddCommand = function(args)
       error("no group found by name " .. args.target.group)
     end
 
-    path = missionCommands.addCommandForGroup(group:getID(), args.name, args.path, function()
+    missionCommands.addCommandForGroup(group:getID(), args.name, args.path, function()
       if not ts.channel_send(args.channel.id, {
-        id = id
+        path = handle,
+        target = args.target
       }) then
-        local path = args.path
-        if path == nil then
-          path = {}
-        end
-        table.insert(path, 1, args.name)
-        missionCommands.removeItemForGroup(group:getID(), path)
+        missionCommands.removeItemForGroup(group:getID(), handle)
       end
     end)
   elseif args.target.coalition ~= nil then
-    path = missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path, function()
+    missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path, function()
       if not ts.channel_send(args.channel.id, {
-        id = id
+        path = handle,
+        target = args.target
       }) then
-        local path = args.path
-        if path == nil then
-          path = {}
-        end
-        table.insert(path, 1, args.name)
-        missionCommands.removeItemForCoalition(args.target.coalition, path)
+        missionCommands.removeItemForCoalition(args.target.coalition, handle)
       end
     end)
   else
@@ -576,29 +582,39 @@ fns.missionCommandsAddCommand = function(args)
   end
 
   return {
-    id = id,
-    path = path,
+    path = handle,
     target = args.target
   }
 end
 
 fns.missionCommandsAddSubMenu = function(args)
+  local handle = {}
+  if args.path ~= nil then
+    for _, item in ipairs(args.path) do
+      table.insert(handle, item)
+    end
+  end
+
+  table.insert(handle, args.name)
   if args.target == nil then
+    missionCommands.addSubMenu(args.name, args.path)
     return {
-      path = missionCommands.addSubMenu(args.name, args.path)
+      path = handle
     }
   elseif args.target.group ~= nil then
     local group = Group.getByName(args.target.group)
     if group == nil then
       error("no group found by name " .. args.target.group)
     end
+    missionCommands.addSubMenuForGroup(group:getID(), args.name, args.path)
     return {
-      path = missionCommands.addSubMenuForGroup(group:getID(), args.name, args.path),
+      path = handle,
       target = args.target
     }
   elseif args.target.coalition ~= nil then
+    missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path)
     return {
-      path = missionCommands.addCommandForCoalition(args.target.coalition, args.name, args.path),
+      path = handle,
       target = args.target
     }
   else
@@ -637,8 +653,8 @@ fns.eval = function(args)
   return result
 end
 
-unitWatcherId = 1
-unitWatchers = {}
+local unitWatcherId = 1
+local unitWatchers = {}
 
 fns.unitWatcherCreate = function(args)
   local id = unitWatcherId
@@ -656,7 +672,31 @@ fns.unitWatcherCreate = function(args)
     for unitName, value in pairs(unitWatchers[id].units) do
       local unit = Unit.getByName(unitName)
       if unit ~= nil then
-        table.insert(updated, exportUnit(unit))
+        local unitData = exportUnit(unit)
+
+        if args.extra ~= nil then
+          if args.extra.life then
+            unitData.life = {
+              current = unit:getLife(),
+              initial = unit:getLife0()
+            }
+          end
+          if args.extra.ammo then
+            unitData.ammo = unit:getAmmo()
+          end
+          if args.extra.radar then
+            local enabled, target = unit:getRadar()
+            unitData.radar = {
+              enabled = enabled,
+              target = exportObject(target)
+            }
+          end
+          if args.extra.fuel then
+            unitData.fuel = unit:getFuel()
+          end
+        end
+
+        table.insert(updated, unitData)
       else
         table.insert(removed, unitName)
       end
@@ -818,6 +858,12 @@ fns.objectGetDesc = function(args)
 
     if category == Object.Category.WEAPON then
       return Weapon.getDesc(object)
+    elseif category == Object.Category.UNIT then
+      return Unit.getDesc(object)
+    elseif category == Object.Category.BASE then
+      return Airbase.getDesc(object)
+    elseif category == Object.Category.STATIC then
+      return StaticObject.getDesc(object)
     end
 
     return nil
@@ -829,7 +875,19 @@ fns.objectGet = function(args)
 end
 
 fns.objectDestroy = function(args)
-  Object.destroy(getObject(args.object))
+  if args.object.unit ~= nil then
+    Unit.getByName(args.object.unit):destroy()
+  elseif args.object.group ~= nil then
+    Group.getByName(args.object.group):destroy()
+  elseif args.object.airbase ~= nil then
+    Airbase.getByName(args.object.airbase):destroy()
+  elseif args.object.staticObject ~= nil then
+    StaticObject.getByName(args.object.staticObject):destroy()
+  elseif args.object.id ~= nil then
+    return Object.destroy({
+      id_ = args.object.id
+    })
+  end
 end
 
 fns.getMarkPanels = function(args)
@@ -941,7 +999,13 @@ fns.triggerActionOutSound = function(args)
 end
 
 fns.envGetMission = function(args)
-  return env.mission
+  -- nb: we serialize this because the structure has deep-integer keys that would
+  --  be a pain to manage (not to mention copying this table...)
+  return net.lua2json(env.mission)
+end
+
+fns.getDCSVersion = function(args)
+  return _G._APP_VERSION
 end
 
 fns.createEventProducer = function(args)

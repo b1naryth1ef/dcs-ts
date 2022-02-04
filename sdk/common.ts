@@ -104,6 +104,7 @@ export type Group = {
 
 export type ObjectRef = (
   | { unit: string }
+  | { group: string }
   | { weapon: string }
   | { airbase: string }
   | { staticObject: string }
@@ -295,4 +296,10 @@ export enum Country {
   ARGENTINA = 83,
   CYPRUS = 84,
   SLOVENIA = 85,
+}
+
+declare global {
+  interface Window {
+    dataDir: string;
+  }
 }

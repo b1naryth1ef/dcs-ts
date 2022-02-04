@@ -27,15 +27,24 @@ if not string.find(package.cpath, installPath) then
 end
 
 local ts = require("dcs_ts")
-_G.ts = ts
 
 local isMissionEnv = DCS == nil
 if isMissionEnv then
-  env.info("[dcs-ts] mission env is initializing typescript runtime")
+  env.info("[dcs-ts] initializing native components")
   local ok, result = pcall(function()
     ts.initialize(lfs.writedir())
+    _G.ts = ts
   end)
-  if not ok then
+  if ok then
+    local eventHandler = {}
+    function eventHandler:onEvent(event)
+      if event.id == world.event.S_EVENT_MISSION_END then
+        env.info("[dcs-ts] signaling mission end")
+        ts.mission_end()
+      end
+    end
+    world.addEventHandler(eventHandler)
+  else
     env.info("[dcs-ts] initialization failed: " .. tostring(result))
   end
 end
